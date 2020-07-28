@@ -1,34 +1,28 @@
-#source("http://bioconductor.org/biocLite.R")
-#biocLite("MEDIPS")
+if (!requireNamespace("BiocManager", quietly=TRUE))
+  install.packages("BiocManager")
+BiocManager::install("MEDIPS")
 
-# check requirement package
-packageDescription("BSgenome")
-packageDescription("gtools")
-packageDescription("edgeR")
-packageDescription("DNAcopy")
-packageDescription("Rsamtools")
-packageDescription("rtracklayer")
-
-# selected genome:
+# avaiblable genome
 library("BSgenome")
 available.genomes()
 
-#We mapped the short reads against the human genome build hg38. Therefore, we download and install this genome build:
-source("http://bioconductor.org/biocLite.R")
-#biocLite("BSgenome.Hsapiens.UCSC.hg38")
-#biocLite("BSgenome.Hsapiens.UCSC.hg19")
 
-# data toy
-source("http://bioconductor.org/biocLite.R")
-#biocLite("MEDIPSData")
 
-# Load the MEDIPS package
+# The reference genome is hg38:
+if (!requireNamespace("BiocManager", quietly=TRUE))
+  install.packages("BiocManager")
+BiocManager::install("BSgenome.Hsapiens.UCSC.hg38")
+
+# Play with toy data -----------------------------
+if (!requireNamespace("BiocManager", quietly=TRUE))
+  install.packages("BiocManager")
+BiocManager::install("BSgenome.Hsapiens.UCSC.hg19")
+if (!requireNamespace("BiocManager", quietly=TRUE))
+  install.packages("BiocManager")
+BiocManager::install("MEDIPSData")
+
 library(MEDIPS)
-# we mapped the short reads against the human genome build hg38 -> load the hg38 library:
-#library(BSgenome.Hsapiens.UCSC.hg38)
 library(BSgenome.Hsapiens.UCSC.hg19)
-
-# load the data with bam files
 library("MEDIPSData")
 bam.file.hESCs.Rep1.MeDIP = system.file("extdata", "hESCs.MeDIP.Rep1.chr22.bam",
                                         package = "MEDIPSData")
@@ -37,41 +31,113 @@ bam.file.hESCs.Input = system.file("extdata", "hESCs.Input.chr22.bam",
 bam.file.DE.Input = system.file("extdata", "DE.Input.chr22.bam",
                                 package = "MEDIPSData")
 
-# set parametersL
-# The reference genome is hg38:
-#BSgenome="BSgenome.Hsapiens.UCSC.hg38"
+# set parameters
 BSgenome="BSgenome.Hsapiens.UCSC.hg19"
-
-#MEDIPS will replace all reads which map to exactly the same start and end
-#positions on the same strand by only one representative:
-uniq=TRUE
-
-#All reads will be extended to a length of 300nt according to the given strand information:
+uniq=1e-3
 extend=300
-
-# As an alternative to the extend parameter, the shift parameter can be specified. Here, the reads are not extended but shifted by the specified number
-# of nucleotides with respect to the given strand infomation. One of the two
-# parameters extend or shift has to be 0.
 shift=0
-
-#The genome will be divided into adjacent windows of length 100nt and all further
-#calculations (short read coverage, differential coverage between conditions etc.)
-#will be calculated for each window.
 ws=100
-
-#In this manual, we are going to process only one chromosome (i.e. chr22) in
-#order to exemplify a typical workflow. Therefore, we specify the chr.select
-#parameter. Please note, the example bam files contain only data for chr22
-#anyway. Therefore, it is not necessary to explicitly specify this chromosome in
-#this example.
 chr.select="chr22"
 
+# Case study: Genome wide methylation and differential coverage between two conditions
+hESCs_MeDIP = MEDIPS.createSet(file = bam.file.hESCs.Rep1.MeDIP,
+                               BSgenome = BSgenome, extend = extend, shift = shift, uniq = uniq,
+                               window_size = ws, chr.select = chr.select)
 
-#  Quality controls
-# MEDIPS provides three different quality controls
-# 5.1 Saturation analysis - could not run this codeline
+bam.file.hESCs.Rep2.MeDIP = system.file("extdata", "hESCs.MeDIP.Rep2.chr22.bam",
+                                        package = "MEDIPSData")
+hESCs_MeDIP = c(hESCs_MeDIP, MEDIPS.createSet(file = bam.file.hESCs.Rep2.MeDIP,
+                                              BSgenome = BSgenome, extend = extend, shift = shift, uniq = uniq,
+                                              window_size = ws, chr.select = chr.select))
+hESCs_MeDIP_v2 <- hESCs_MeDIP
+# here we load the preprocessed lists of MeDIP-seq MEDIPS SETs available in the MEDIPSData package:
+data(hESCs_MeDIP)
+data(DE_MeDIP)
+
+hESCs_Input = MEDIPS.createSet(file = bam.file.hESCs.Input, BSgenome = BSgenome,
+                               extend = extend, shift = shift, uniq = uniq, window_size = ws,
+                               chr.select = chr.select)
+DE_Input = MEDIPS.createSet(file = bam.file.DE.Input, BSgenome = BSgenome,
+                            extend = extend, shift = shift, uniq = uniq, window_size = ws,
+                            chr.select = chr.select)
+CS = MEDIPS.couplingVector(pattern = "CG", refObj = hESCs_MeDIP[[1]])
+
+
+# Coverage, methylation profiles and differential coverage
+mr.edgeR = MEDIPS.meth(MSet1 = DE_MeDIP, MSet2 = hESCs_MeDIP,
+                       CSet = CS, ISet1 = DE_Input, ISet2 = hESCs_Input, p.adj = "bonferroni",
+                       diff.method = "edgeR", MeDIP = T, CNV = F, minRowSum = 10)
+
+
+# Differential coverage: selecting significant windows
+mr.edgeR.s = MEDIPS.selectSig(results = mr.edgeR, p.value = 0.1,
+                              adj = T, ratio = NULL, bg.counts = NULL, CNV = F)
+
+# Merging neighboring significant windows
+mr.edgeR.s.gain = mr.edgeR.s[which(mr.edgeR.s[, grep("logFC",
+                                                     colnames(mr.edgeR.s))] > 0), ]
+
+mr.edgeR.s.gain.m = MEDIPS.mergeFrames(frames = mr.edgeR.s.gain,
+                                       distance = 1)
+
+# Extracting data at regions of interest
+columns = names(mr.edgeR)[grep("counts", names(mr.edgeR))]
+rois = MEDIPS.selectROIs(results = mr.edgeR, rois = mr.edgeR.s.gain.m,
+                         columns = columns, summarize = NULL)
+rois.s = MEDIPS.selectROIs(results = mr.edgeR, rois = mr.edgeR.s.gain.m,
+                           columns = columns, summarize = "avg")
+
+## Quality controls: MEDIPS provides three different quality controls -------------------------------
+# run for the MeDIP-seq hESCs sample hESCs_Rep1_MeDIP.bam.
+
+# Saturation analysis
 sr = MEDIPS.saturation(file = bam.file.hESCs.Rep1.MeDIP, BSgenome = BSgenome,
                        uniq = uniq, extend = extend, shift = shift, window_size = ws,
                        chr.select = chr.select, nit = 10, nrit = 1, empty_bins = TRUE,
                        rank = FALSE)
-Check code in: https://bioconductor.riken.jp/packages/3.0/bioc/vignettes/MEDIPS/inst/doc/MEDIPS.pdf
+MEDIPS.plotSaturation(sr)
+
+# Correlation between samples
+cor.matrix = MEDIPS.correlation(MSets = c(hESCs_MeDIP, DE_MeDIP, hESCs_Input, DE_Input), 
+                                plot = T, method = "pearson") # could not run this code
+
+# Sequence Pattern Coverage
+cr = MEDIPS.seqCoverage(file = bam.file.hESCs.Rep1.MeDIP, pattern = "CG",
+                        BSgenome = BSgenome, chr.select = chr.select, extend = extend,
+                        shift = shift, uniq = uniq)
+MEDIPS.plotSeqCoverage(seqCoverageObj=cr, type="pie", cov.level = c(0,1, 2, 3, 4, 5))
+MEDIPS.plotSeqCoverage(seqCoverageObj=cr, type="hist", t = 15, main="Sequence pattern coverage, histogram")
+
+
+# CpG Enrichment
+er = MEDIPS.CpGenrich(file = bam.file.hESCs.Rep1.MeDIP, BSgenome = BSgenome,
+                      chr.select = chr.select, extend = extend, shift = shift,
+                      uniq = uniq) # could not run this code
+## Miscellaneous ---------------------
+Read: 6. Comments on the experimental design and Input data
+# Processing regions of interest
+Instead of caluclating coverage and differential coverage at genome wide small windows,
+it is also possible to perform targetd analyses of regions of interest (ROI's, e.g. exons, promoter regions, CpG islands etc.).'
+
+# Export Wiggle Files
+allows to export genome wide coverage profiles as wiggle files for visualization in common genome browsers.
+#MEDIPS.exportWIG(Set = hESCs_MeDIP[[1]], file = "hESC.MeDIP.rep1.wig", format = "rpkm", descr = "")
+
+# Merging MEDIPS SETs
+Input.merged = MEDIPS.mergeSets(MSet1 = hESCs_Input, MSet2 = DE_Input,
+                                name = "Input.hESCs.DE")
+
+# Annotation of significant windows
+anno.mart.gene = MEDIPS.getAnnotation(dataset = c("hsapiens_gene_ensembl"),
+                                      + annotation = c("GENE"), chr = "chr22")
+
+mr.edgeR.s = MEDIPS.setAnnotation(regions = mr.edgeR.s, annotation = anno.mart.gene)
+
+# addCNV (copy number variation)
+mr.edgeR = MEDIPS.addCNV(cnv.Frame = 10000, ISet1 = hESCs_Input,
+                         ISet2 = DE_Input, results = mr.edgeR)
+
+# Calibration Plot --? seem to be improtant:
+MEDIPS.plotCalibrationPlot(CSet = CS, main = "Calibration Plot",
+                           MSet = hESCs_MeDIP[[1]], plot_chr = "chr22", rpkm = TRUE,
+                           + xrange = TRUE)
