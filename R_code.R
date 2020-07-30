@@ -1,6 +1,6 @@
 if (!requireNamespace("BiocManager", quietly=TRUE))
   install.packages("BiocManager")
-BiocManager::install("MEDIPS")
+#BiocManager::install("MEDIPS")
 
 # avaiblable genome
 library("BSgenome")
@@ -11,21 +11,20 @@ available.genomes()
 # The reference genome is hg38:
 if (!requireNamespace("BiocManager", quietly=TRUE))
   install.packages("BiocManager")
-BiocManager::install("BSgenome.Hsapiens.UCSC.hg38")
+#BiocManager::install("BSgenome.Hsapiens.UCSC.hg38")
 
 # Play with toy data -----------------------------
 if (!requireNamespace("BiocManager", quietly=TRUE))
   install.packages("BiocManager")
-BiocManager::install("BSgenome.Hsapiens.UCSC.hg19")
+#BiocManager::install("BSgenome.Hsapiens.UCSC.hg19")
 if (!requireNamespace("BiocManager", quietly=TRUE))
   install.packages("BiocManager")
-BiocManager::install("MEDIPSData")
+#BiocManager::install("MEDIPSData")
 
 library(MEDIPS)
 library(BSgenome.Hsapiens.UCSC.hg19)
 library("MEDIPSData")
-bam.file.hESCs.Rep1.MeDIP = system.file("extdata", "hESCs.MeDIP.Rep1.chr22.bam",
-                                        package = "MEDIPSData")
+
 bam.file.hESCs.Input = system.file("extdata", "hESCs.Input.chr22.bam",
                                    package = "MEDIPSData")
 bam.file.DE.Input = system.file("extdata", "DE.Input.chr22.bam",
@@ -40,16 +39,22 @@ ws=100
 chr.select="chr22"
 
 # Case study: Genome wide methylation and differential coverage between two conditions
-hESCs_MeDIP = MEDIPS.createSet(file = bam.file.hESCs.Rep1.MeDIP,
-                               BSgenome = BSgenome, extend = extend, shift = shift, uniq = uniq,
+
+# combine replicates
+bam.file.hESCs.Rep1.MeDIP = system.file("extdata", "hESCs.MeDIP.Rep1.chr22.bam",
+                                        package = "MEDIPSData")
+hESCs_MeDIP = MEDIPS.createSet(file = bam.file.hESCs.Rep1.MeDIP, BSgenome = BSgenome,
+                               extend = extend, shift = shift, uniq = uniq,
                                window_size = ws, chr.select = chr.select)
 
 bam.file.hESCs.Rep2.MeDIP = system.file("extdata", "hESCs.MeDIP.Rep2.chr22.bam",
                                         package = "MEDIPSData")
-hESCs_MeDIP = c(hESCs_MeDIP, MEDIPS.createSet(file = bam.file.hESCs.Rep2.MeDIP,
-                                              BSgenome = BSgenome, extend = extend, shift = shift, uniq = uniq,
+hESCs_MeDIP = c(hESCs_MeDIP, MEDIPS.createSet(file = bam.file.hESCs.Rep2.MeDIP, BSgenome = BSgenome,
+                                              extend = extend, shift = shift, uniq = uniq,
                                               window_size = ws, chr.select = chr.select))
+
 hESCs_MeDIP_v2 <- hESCs_MeDIP
+
 # here we load the preprocessed lists of MeDIP-seq MEDIPS SETs available in the MEDIPSData package:
 data(hESCs_MeDIP)
 data(DE_MeDIP)
@@ -129,9 +134,10 @@ Input.merged = MEDIPS.mergeSets(MSet1 = hESCs_Input, MSet2 = DE_Input,
 
 # Annotation of significant windows
 anno.mart.gene = MEDIPS.getAnnotation(dataset = c("hsapiens_gene_ensembl"),
-                                      + annotation = c("GENE"), chr = "chr22")
+                                      annotation = c("GENE"), chr = "chr22")
 
 mr.edgeR.s = MEDIPS.setAnnotation(regions = mr.edgeR.s, annotation = anno.mart.gene)
+mr.edgeR.s.gain = MEDIPS.setAnnotation(regions = mr.edgeR.s.gain, annotation = anno.mart.gene)
 
 # addCNV (copy number variation)
 mr.edgeR = MEDIPS.addCNV(cnv.Frame = 10000, ISet1 = hESCs_Input,
