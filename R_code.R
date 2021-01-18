@@ -60,7 +60,7 @@ for(time in row.names(data_number)) {
   for(EPI_Dose in c("EPI_The", "EPI_Tox")) {
     file_EPI <- data_number[time, EPI_Dose] : (data_number[time, EPI_Dose]+2)
     
-    samples =data.frame(sample_name=c(paste0("EPI_L", file_EPI), paste0("ConDMSO_S", file_Con)),
+    samples<-data.frame(sample_name=c(paste0("EPI_L", file_EPI), paste0("ConDMSO_S", file_Con)),
                         file_name=c(paste0(folder_EPI, "EPI_L", file_EPI, "_pe.sorted.bam"), 
                                     paste0(folder_Con, "Cardiac_FlucDMSO_S", file_Con, "_pe.sorted.bam")),
                         group=c(rep("EPI", 3), rep("Control", 3)), stringsAsFactors=FALSE)
@@ -68,6 +68,22 @@ for(time in row.names(data_number)) {
     qsea.get_DMR(samples, output_name = paste0(EPI_Dose, time))
   }
 }
+
+ConDMSO <- seq(10, 30)
+EPI_The <- seq(6794, 6814)
+EPI_Dox <- seq(6815, 6835)
+
+The_samples <- data.frame(sample_name = c(paste0("EPI_The_L", EPI_The), paste0("ConDMSO_S", ConDMSO)),
+                         file_name = c(paste0(folder_EPI, "EPI_L", EPI_The, "_pe.sorted.bam"), 
+                                       paste0(folder_Con, "Cardiac_FlucDMSO_S", ConDMSO, "_pe.sorted.bam")),
+                         group = c(rep("EPI_The", length(EPI_The)), rep("Control", length(ConDMSO))), stringsAsFactors = FALSE)
+qsea.get_DMR(The_samples, output_name = "EPI_The_allSamples")
+
+Tox_samples <- data.frame(sample_name = c(paste0("RPI_Tox_L", RPI_Tox), paste0("ConDMSO_S", ConDMSO)),
+                          file_name = c(paste0(folder_EPI, "EPI_L", EPI_Tox, "_pe.sorted.bam"), 
+                                        paste0(folder_Con, "Cardiac_FlucDMSO_S", ConDMSO, "_Pe.sorted.bam")),
+                          group = c(rep("EPI_Tox", length(EPI_Tox)), rep("Control", length(ConDMSO))), stringsAsFactors = FALSE)
+qsea.get_DMR(Tox_samples, output_name = "EPI_Tox_allSamples")
 
 ## Load file for analysis ------------------------------------------------
 # Quality control: enrichment profile
@@ -89,7 +105,7 @@ plotPCA(pca_cgi, bgColor=col)
 dev.off()
 
 
-# Annotation, 
+# Annotation - option 1:
 library(GenomicRanges)
 sig <- isSignificant(qseaGLM, fdr_th=0.01) # No region was selected in EPI_The_002 vs EPI_The_008,but have sig region  EPI_Thee_002 vs control
 
@@ -97,61 +113,86 @@ library("rtracklayer")
 gtfRangeData <- import.gff("/ngs-data/analysis/hecatos/NhanNguyen/Genome/bwa_genome_CRCh38.101/Homo_sapiens.GRCh38.101.gtf.gz")
 myGRanges <- as(gtfRangeData, "GRanges")
 
-result2 <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
+result <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
                      keep=sig, annotation=list(the_ranges=myGRanges), norm_method="beta") # MAKE LIST 
 
-save(qseaSet_blind, qseaGLM, sig, file = "midterm_outcome_2020Nov16.RData")
 
-load("midterm_outcome_2020Nov16.RData")
-load("myGRanges.RData")
-data(annotation, package="MEDIPSData") --> ROIs
-# test with new ROIs:
+# Annotation - option 2:
 #BiocManager::install("TxDb.Hsapiens.UCSC.hg38.knownGene")
 library("TxDb.Hsapiens.UCSC.hg38.knownGene")
-txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene #shorthand (for convenience)
+txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
 txdb
-
-#genome(txdb) <- "BSgenome.Hsapiens.UCSC.hg38" - could not run
+methods(class=class(txdb))
 
 seqlevels(txdb)
 columns(txdb)
-
-#keytypes(txdb)
-#keys <- c("100033416", "100033417", "100033420")
-#select(txdb, keys = keys, columns="TXNAME", keytype="GENEID")
+keytypes(txdb)
 
 #transcript
-transcript_reg <- transcripts(txdb)
-prom_reg <- promoters(txdb, upstream=2000, downstream=2000) #2000 nu up TSS, and 2000 nu down TSS
-exon_reg <- exons(txdb)
-cds_reg <- cds(txdb)
+genetic_features <- c("tx_id", "tx_name", "gene_id")
+transcript_reg <- transcripts(txdb, columns = genetic_features)
+prom_reg <- promoters(txdb, upstream=2000, downstream=2000, columns = genetic_features) #2000 nu up TSS, and 2000 nu down TSS
+exon_reg <- exons(txdb, columns = c("exon_id", genetic_features))
+cds_reg <- cds(txdb, columns = c("cds_id", genetic_features))
+gene_reg <- genes(txdb)
 
-#genes
-#genes_txdb <- genes(txdb)
-1613 genes were dropped because they have exons located on both strands of the same
-reference sequence or on more than one reference sequence, so cannot be represented by a
-single genomic range., but using  'single.strand.genes.only=FALSE' -- could nto get normal format outcome
+#gene_reg <- genes(txdb, single.strand.genes.only=FALSE)
+#gene_reg2 <- genes(txdb, columns = genetic_features, single.strand.genes.only=FALSE)
+#threeUTR <- threeUTRsByTranscript(txdb)
+#fiveUTR <- fiveUTRsByTranscript(txdb)
 
-genes_txdb <- genes(txdb)
-promoters_txdb <- promoters(genes_txdb, upstream=2000, downstream=2000)
-promoters_txdb
-exon_reg <- exons(txdb)
-cds_reg <- cds(genes_txdb)
+#fix the genome name
+genome(transcript_reg) <- "BSgenome.Hsapiens.UCSC.hg38"
+genome(prom_reg) <- "BSgenome.Hsapiens.UCSC.hg38"
+genome(exon_reg) <- "BSgenome.Hsapiens.UCSC.hg38"
+genome(cds_reg) <- "BSgenome.Hsapiens.UCSC.hg38"
+genome(gene_reg) <- "BSgenome.Hsapiens.UCSC.hg38"
+
+ROIs <- list(transcript_reg, prom_reg, exon_reg, cds_reg, gene_reg)
+names(ROIs) <- c("transcript", "promoter", "exon", "coding_region", "gene_region")
+rm(transcript_reg, prom_reg, exon_reg, cds_reg, gene_reg)
+
+load("qsea_outcome_EPI_The002.RData")
+
+#library(GenomicRanges)
+sig <- isSignificant(qseaGLM, fdr_th=0.01)
+result <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
+                     keep=sig, annotation=ROIs, norm_method="beta")
+knitr::kable(head(result2))
+
+# conver gene name - option 1:
+
+get.gene_symbol <- function(res) {
+  library(org.Hs.eg.db)
+  GeneSymbols <- select(org.Hs.eg.db,
+                        keys = res$gene_region,
+                        columns = c("SYMBOL","ENTREZID"),
+                        keytype = "ENTREZID")
+  multi_gene_ids <- grep(",", res$gene_region)
+  if (length(multi_gene_ids) >0) {
+    for (i in multi_gene_ids) {
+      gene_ids <- strsplit(res$gene_region[i], "[,]")[[1]]
+      convert_table <- select(org.Hs.eg.db, keys = gsub("[[:blank:]]", "", gene_ids),
+                              columns = c("SYMBOL", "ENTREZID"), keytype = "ENTREZID")
+      GeneSymbols[i, "SYMBOL"] <- paste(convert_table$SYMBOL, collapse = ", ")
+    }
+  }
+  return(GeneSymbols)
+}
+
+b<-get.gene_symbol(result)
+identical(b$ENTREZID, result$gene_region)
+res <- cbind(res, b$SYMBOL)
+
+# do the volcano plot
+https://biocorecrg.github.io/CRG_RIntroduction/volcano-plots.html
+
 
 # covragane range
-
 exon_gene <- exonsBy(txdb, by="gene")
 genes_cvg <- coverageByTranscript(genes_txdb, exon_gene)
-
-txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
 txBygene<- transcriptsBy(txdb, by="gene")
 cds_gene <- cdsBy(txdb, "gene")
-
-
-threeUTR <- threeUTRsByTranscript(txdb)
-fiveUTR <- fiveUTRsByTranscript(txdb)
-
-cds_gene2 <- cds(txdb, "gene")
 
 
 # CpG island
@@ -207,31 +248,6 @@ setdiff(mcols(cur)$SNPS, mcols(cur19)$SNPS)
 tx_cvg <- coverageByTranscript(txdb, transcripts)
 tx_cvg
 
-# conver gene name
-library(biomaRt)
-
-genes <- genes(TxDb.Hsapiens.UCSC.hg38.knownGene)
-mart <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
-bm <- getBM(attributes = c("external_gene_name",'entrezgene_id'), values=names(genes),filters ='entrezgene_id', mart = mart)
-names(genes) <- bm$external_gene_name[match(genes$gene_id,bm$entrezgene_id)]
-genes$gene_names <- bm$external_gene_name[match(genes$gene_id,bm$entrezgene_id)]
-
-# fix the naem of genome
-genome(exon_reg) <- "BSgenome.Hsapiens.UCSC.hg38"
-genome(prom_reg) <- "BSgenome.Hsapiens.UCSC.hg38"
-genome(transcript_reg) <- "BSgenome.Hsapiens.UCSC.hg38"
-genome(cds_reg) <- "BSgenome.Hsapiens.UCSC.hg38"
-
-ROIs_2=list(transcript_reg, exon_reg, prom_reg, cds_reg)
-names(ROIs_2)=c("transcript", "exon", "promoter", "coding_region")
-
-result2 <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
-                     keep=sig, annotation=ROIs_2, norm_method="beta") # mistake
-
-# error could not read file
-
-result2 <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
-                     keep=sig, annotation=list(exon=exon_reg), norm_method="beta") # MAKE LIST 
 
 # In .Seqinfo.mergexy(x, y) :
 The 2 combined objects have no sequence levels in common. (Use  suppressWarnings() to suppress this warning.)
@@ -245,27 +261,8 @@ write.table(result_homer, "test_2020Now05.txt", quote = FALSE, append = FALSE, s
 result_homer1 <- cbind(c(1:nrow(result2)), result2[,c(1:3)], rep(1, nrow(result2)))
 colnames(result_homer1) <- c("PeakID", "Chr", "Start", "End", "Strand")
 write.table(result_homer1, "test1_2020Now05.txt", quote = FALSE, append = FALSE, sep = "\t", dec = ".", col.names = TRUE, row.names = FALSE)
-## normalization
-
-library(GenomicRanges)
-sig=isSignificant(qseaGLM, fdr_th=.01)
-data(annotation, package="MEDIPSData")
-result=makeTable(qseaSet_blind, 
-                 glm=qseaGLM, 
-                 groupMeans=getSampleGroups(qseaSet), 
-                 keep=sig, 
-                 annotation=ROIs, 
-                 norm_method="beta")
-knitr::kable(head(result))
 
 
-result2=makeTable(qseaSet_blind2, 
-                 glm=qseaGLM2, 
-                 groupMeans=getSampleGroups(qseaSet), 
-                 keep=sig, 
-                 annotation=ROIs, 
-                 norm_method="beta")
-knitr::kable(head(result2))
 
 # stop here
 #setwd("D:/TGX/GitHub/MeDIP")
