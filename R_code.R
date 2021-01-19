@@ -136,6 +136,8 @@ exon_reg <- exons(txdb, columns = c("exon_id", genetic_features))
 cds_reg <- cds(txdb, columns = c("cds_id", genetic_features))
 gene_reg <- genes(txdb)
 
+rm(txdb, genetic_features)
+
 #gene_reg <- genes(txdb, single.strand.genes.only=FALSE)
 #gene_reg2 <- genes(txdb, columns = genetic_features, single.strand.genes.only=FALSE)
 #threeUTR <- threeUTRsByTranscript(txdb)
@@ -150,18 +152,19 @@ genome(gene_reg) <- "BSgenome.Hsapiens.UCSC.hg38"
 
 ROIs <- list(transcript_reg, prom_reg, exon_reg, cds_reg, gene_reg)
 names(ROIs) <- c("transcript", "promoter", "exon", "coding_region", "gene_region")
-rm(transcript_reg, prom_reg, exon_reg, cds_reg, gene_reg)
+save(ROIs, file = "ROIs_2021Jan19.RData")
+rm(ROIs, transcript_reg, prom_reg, exon_reg, cds_reg, gene_reg)
 
+## Get the DMRs -----------------------------------------------
 load("qsea_outcome_EPI_The002.RData")
-
+load("ROIS_2021Jan19.RData")
 #library(GenomicRanges)
 sig <- isSignificant(qseaGLM, fdr_th=0.01)
 result <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
                      keep=sig, annotation=ROIs, norm_method="beta")
-knitr::kable(head(result2))
+knitr::kable(head(result))
 
-# conver gene name - option 1:
-
+# conver gene name
 get.gene_symbol <- function(res) {
   library(org.Hs.eg.db)
   GeneSymbols <- select(org.Hs.eg.db,
@@ -180,12 +183,46 @@ get.gene_symbol <- function(res) {
   return(GeneSymbols)
 }
 
-b<-get.gene_symbol(result)
-identical(b$ENTREZID, result$gene_region)
-res <- cbind(res, b$SYMBOL)
+res_gene_symbol <- get.gene_symbol(result)
+identical(res_gene_symbol$ENTREZID, result$gene_region)
+res_gene_symbol <- cbind(result, res_gene_symbol$SYMBOL)
 
 # do the volcano plot
-https://biocorecrg.github.io/CRG_RIntroduction/volcano-plots.html
+tmp<-res_gene_symbol[,c("TvN_log2FC", "TvN_adjPval", "res_gene_symbol$SYMBOL")]
+colnames(tmp) <- c("log2FC", "adjPval", "gene_symbol")
+# which(tmp$adjPval>0.05) # no genes
+tmp <- tmp[complete.cases(tmp),]
+# calculate mean for duplicated gene symbols
+library(tidyverse)
+filted_tmp<- tmp %>% group_by(gene_symbol) %>% summarize(log2FC_mean = mean(log2FC), 
+                                                adjPval_mean = mean(adjPval))
+
+Pvalue <- 0.001
+Log2FC_cutoff <- 1.5
+filted_tmp$diffexpressed <- "MILD"
+filted_tmp$diffexpressed[filted_tmp$log2FC_mean > Log2FC_cutoff & filted_tmp$adjPval_mean <Pvalue] <- "UP"
+filted_tmp$diffexpressed[filted_tmp$log2FC_mean < -Log2FC_cutoff & filted_tmp$adjPval_mean <Pvalue] <- "DOWN"
+filted_tmp$label[filted_tmp$diffexpressed != "MILD"] <- filted_tmp$gene_symbol[filted_tmp$diffexpressed != "MILD"]
+
+
+library(ggrepel)
+mycolors <- c("blue", "black", "red")
+names(mycolors) <- c("DOWN", "MILD", "UP")
+
+ggplot(data = filted_tmp, mapping = aes(x=log2FC_mean, y=-log10(adjPval_mean), col=diffexpressed)) +
+  geom_point() + theme_minimal() + 
+  geom_vline(xintercept = c(-Log2FC_cutoff, Log2FC_cutoff), col = "red") +
+  geom_hline(yintercept = -log10(Pvalue), col = "red") +
+  scale_color_manual(values = mycolors)
+
+
+# with gene_symbol
+ggplot(data = filted_tmp, mapping = aes(x=log2FC_mean, y=-log10(adjPval_mean), col=diffexpressed, label = label)) +
+  geom_point() + theme_minimal() + geom_text_repel() +
+  geom_vline(xintercept = c(-Log2FC_cutoff, Log2FC_cutoff), col = "red") +
+  geom_hline(yintercept = -log10(Pvalue), col = "red") +
+  scale_color_manual(values = mycolors)
+
 
 
 # covragane range
