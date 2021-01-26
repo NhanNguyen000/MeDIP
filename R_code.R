@@ -118,6 +118,26 @@ result <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaS
 
 
 # Annotation - option 2:
+
+explaining the annotation: https://bioconductor.org/packages/release/bioc/vignettes/annotatr/inst/doc/annotatr-vignette.html
+library(annotatr)
+annots = c('hg38_cpgs', 'hg38_basicgenes', 'hg38_genes_intergenic')
+annotations = build_annotations(genome = 'hg38', annotations = annots)
+genome(annotations) <- "BSgenome.Hsapiens.UCSC.hg38"
+
+id<- annotations[,1]
+tx_id <- annotations[,2]
+gene_id <- annotations[,3]
+symbol <- annotations[,4]
+type <- annotations[,5]
+ROIs_v2 <- list(id, tx_id, gene_id, symbol, type)
+names(ROIs_v2) <- c("id", "tx_id", "gene_id", "symbol", "type")
+#a<- str_sub(unique(annotations$type), 6) # problem with "s"at the end
+a<- c("genes_promoter", "genes_1to5kb", "genes_5UTR", "genes_exon", 
+      "genes_intron,", "genes_3UTR", "genes_intergenic",
+      "cpg_island", "cpg_shore", "cpg_shelve", "cpg_inter")
+
+## using txdb
 #BiocManager::install("TxDb.Hsapiens.UCSC.hg38.knownGene")
 library("TxDb.Hsapiens.UCSC.hg38.knownGene")
 txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
@@ -155,14 +175,37 @@ names(ROIs) <- c("transcript", "promoter", "exon", "coding_region", "gene_region
 save(ROIs, file = "ROIs_2021Jan19.RData")
 rm(ROIs, transcript_reg, prom_reg, exon_reg, cds_reg, gene_reg)
 
+
 ## Get the DMRs -----------------------------------------------
+Check these papers:https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0241515
+https://academic.oup.com/eep/article/3/3/dvx016/4098081?login=true
+
 load("qsea_outcome_EPI_The002.RData")
 load("ROIS_2021Jan19.RData")
 #library(GenomicRanges)
 sig <- isSignificant(qseaGLM, fdr_th=0.01)
 result <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
-                     keep=sig, annotation=ROIs, norm_method="beta")
+                    keep=sig, annotation=ROIs, norm_method="beta")
 knitr::kable(head(result))
+
+result <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
+                     keep=sig, annotation=c(ROIs, ROIs_v2), norm_method="beta")
+result <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
+                    keep=sig, annotation=ROIs_v2, norm_method="beta")
+which(result$id=="") # --> annoation using "annotatr" package provide annotation for all region 
+
+k <- matrix(NA, ncol = length(a), nrow=nrow(result))
+colnames(k) <- a
+result_v2 <- cbind(result, k)
+
+for (i in 1: nrow(result_v2)) {
+  for (region in a) {
+    if (length(grep(unlist(strsplit(region, "_"))[2], result_v2$id[i])) >0) result_v2[i, region] <- 1
+  }
+}
+
+
+gsub("[[:blank:]]","", unlist(strsplit(result_v2$id[1], ",")))
 
 # conver gene name
 get.gene_symbol <- function(res) {
@@ -223,7 +266,7 @@ ggplot(data = filted_tmp, mapping = aes(x=log2FC_mean, y=-log10(adjPval_mean), c
   geom_hline(yintercept = -log10(Pvalue), col = "red") +
   scale_color_manual(values = mycolors)
 
-
+# check the lncRNA -
 
 # covragane range
 exon_gene <- exonsBy(txdb, by="gene")
