@@ -7,119 +7,47 @@ if (!requireNamespace("BiocManager", quietly = TRUE))
 library("BSgenome")
 available.genomes()
 
-# try to run Con_DF data:
 #BiocManager::install("BSgenome.Hsapiens.UCSC.hg38")
 library(qsea)
 library(BSgenome.Hsapiens.UCSC.hg38)
 
-## QSEA code -------------------------------
-
-folder_Con <- "/ngs-data-2/analysis/NhanNguyen/MeDIP/ConFlucDMSO/"
-folder_EPI <- "/ngs-data-2/analysis/NhanNguyen/MeDIP/EPI/"
-#file_EPI <- 6794:6796
-#file_Con <- 10:12
-
-qsea.get_DMR <- function(samples, output_name) {
-  qseaSet=createQseaSet(sampleTable=samples, 
-                        BSgenome="BSgenome.Hsapiens.UCSC.hg38", chr.select=paste0("chr", 1:22),
-                        window_size=500)
-  qseaSet
-  
-  qseaSet <- addCoverage(qseaSet, uniquePos=TRUE, paired=TRUE)  
-  qseaSet <- addCNV(qseaSet, file_name="file_name",window_size=2e6, 
-                    paired=TRUE, parallel=FALSE, MeDIP=TRUE)
-  qseaSet <- addLibraryFactors(qseaSet) 
-  qseaSet <- addPatternDensity(qseaSet, "CG", name="CpG") # have a warning message about the masks selected: AGAPS, AMB
-  qseaSet <- addOffset(qseaSet, enrichmentPattern = "CpG")
-  
-  wd <- which(getRegions(qseaSet)$CpG_density >1 & getRegions(qseaSet)$CpG_density <15)
-  signal <- (15-getRegions(qseaSet)$CpG_density[wd]*0.55/15+0.25)
-  qseaSet_blind <- addEnrichmentParameters(qseaSet, enrichmentPattern="CpG",
-                                           windowIdx=wd, signal=signal)
-  
-  # Differential methylation analysis
-  design<-model.matrix(~group, getSampleTable(qseaSet_blind))
-  qseaGLM<-fitNBglm(qseaSet_blind, design, norm_method="beta")
-  qseaGLM<-addContrast(qseaSet_blind, qseaGLM, coef=2, name="TvN")
-  
-  save(qseaSet_blind, qseaGLM, file= paste0("qsea_outcome_", output_name, ".RData"))
-}
-
-
-data_number <- as.data.frame(matrix(NA, nrow = 7, ncol = 3))
-rownames(data_number) <-c("002", "008", "024", "072", "168", "240", "336")
-colnames(data_number) <- c("Con", "EPI_The", "EPI_Tox")
-
-data_number$Con <- seq(10, 30, 3)
-data_number$EPI_The <- seq(6794, 6814, 3)
-data_number$EPI_Tox <- seq(6815, 6835, 3)
-
-for(time in row.names(data_number)) {
-  file_Con <- data_number[time, "Con"] : (data_number[time, "Con"]+2)
-  
-  for(EPI_Dose in c("EPI_The", "EPI_Tox")) {
-    file_EPI <- data_number[time, EPI_Dose] : (data_number[time, EPI_Dose]+2)
-    
-    samples<-data.frame(sample_name=c(paste0("EPI_L", file_EPI), paste0("ConDMSO_S", file_Con)),
-                        file_name=c(paste0(folder_EPI, "EPI_L", file_EPI, "_pe.sorted.bam"), 
-                                    paste0(folder_Con, "Cardiac_FlucDMSO_S", file_Con, "_pe.sorted.bam")),
-                        group=c(rep("EPI", 3), rep("Control", 3)), stringsAsFactors=FALSE)
-    
-    qsea.get_DMR(samples, output_name = paste0(EPI_Dose, time))
-  }
-}
-
-ConDMSO <- seq(10, 30)
-EPI_The <- seq(6794, 6814)
-EPI_Dox <- seq(6815, 6835)
-
-The_samples <- data.frame(sample_name = c(paste0("EPI_The_L", EPI_The), paste0("ConDMSO_S", ConDMSO)),
-                         file_name = c(paste0(folder_EPI, "EPI_L", EPI_The, "_pe.sorted.bam"), 
-                                       paste0(folder_Con, "Cardiac_FlucDMSO_S", ConDMSO, "_pe.sorted.bam")),
-                         group = c(rep("EPI_The", length(EPI_The)), rep("Control", length(ConDMSO))), stringsAsFactors = FALSE)
-qsea.get_DMR(The_samples, output_name = "EPI_The_allSamples")
-
-Tox_samples <- data.frame(sample_name = c(paste0("RPI_Tox_L", RPI_Tox), paste0("ConDMSO_S", ConDMSO)),
-                          file_name = c(paste0(folder_EPI, "EPI_L", EPI_Tox, "_pe.sorted.bam"), 
-                                        paste0(folder_Con, "Cardiac_FlucDMSO_S", ConDMSO, "_Pe.sorted.bam")),
-                          group = c(rep("EPI_Tox", length(EPI_Tox)), rep("Control", length(ConDMSO))), stringsAsFactors = FALSE)
-qsea.get_DMR(Tox_samples, output_name = "EPI_Tox_allSamples")
+## QSEA code (run in serve) -------------------------------
 
 ## Load file for analysis ------------------------------------------------
 # Quality control: enrichment profile
-getOffset(qseaSet_blind, scale="fraction")
-png("EPi_matrix.png")
-plotEPmatrix(qseaSet_blind)
-dev.off()
+#getOffset(qseaSet_blind, scale="fraction")
+#png("EPi_matrix.png")
+#plotEPmatrix(qseaSet_blind)
+#dev.off()
 
 #Exploratory Analysis: Plots a Heatmap-like Overview of the CNVs
-png("test2.png")
-plotCNV(qseaSet_blind)
-dev.off()
+#png("test2.png")
+#plotCNV(qseaSet_blind)
+#dev.off()
 
 ## PCA of samples without specification
-pca_cgi<-getPCA(qseaSet_blind, norm_method="beta")
-png("pca_test2.png")
-col<- rep(c("red", "green"), 3)
-plotPCA(pca_cgi, bgColor=col)
-dev.off()
+#pca_cgi<-getPCA(qseaSet_blind, norm_method="beta")
+#png("pca_test2.png")
+#col<- rep(c("red", "green"), 3)
+#plotPCA(pca_cgi, bgColor=col)
+#plotPCA(pca_cgi)
+#dev.off()
+
+load("qsea_QC_plots_2021Jan28.RData")
+
+# Annotation --------------------------------------------------------
+# Annotation - option 1:---------------------------------------------
+#library(GenomicRanges)
+#sig <- isSignificant(qseaGLM, fdr_th=0.01) # No region was selected in EPI_The_002 vs EPI_The_008,but have sig region  EPI_Thee_002 vs control
+#library("rtracklayer")
+#gtfRangeData <- import.gff("/ngs-data/analysis/hecatos/NhanNguyen/Genome/bwa_genome_CRCh38.101/Homo_sapiens.GRCh38.101.gtf.gz")
+#myGRanges <- as(gtfRangeData, "GRanges")
+#result <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
+#                     keep=sig, annotation=list(the_ranges=myGRanges), norm_method="beta") # MAKE LIST 
 
 
-# Annotation - option 1:
-library(GenomicRanges)
-sig <- isSignificant(qseaGLM, fdr_th=0.01) # No region was selected in EPI_The_002 vs EPI_The_008,but have sig region  EPI_Thee_002 vs control
-
-library("rtracklayer")
-gtfRangeData <- import.gff("/ngs-data/analysis/hecatos/NhanNguyen/Genome/bwa_genome_CRCh38.101/Homo_sapiens.GRCh38.101.gtf.gz")
-myGRanges <- as(gtfRangeData, "GRanges")
-
-result <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
-                     keep=sig, annotation=list(the_ranges=myGRanges), norm_method="beta") # MAKE LIST 
-
-
-# Annotation - option 2:
-
-explaining the annotation: https://bioconductor.org/packages/release/bioc/vignettes/annotatr/inst/doc/annotatr-vignette.html
+# Annotation - option 2.1: using annotatr package: -------------------------
+#explaining the annotation: https://bioconductor.org/packages/release/bioc/vignettes/annotatr/inst/doc/annotatr-vignette.html
 library(annotatr)
 annots = c('hg38_cpgs', 'hg38_basicgenes', 'hg38_genes_intergenic')
 annotations = build_annotations(genome = 'hg38', annotations = annots)
@@ -130,14 +58,16 @@ tx_id <- annotations[,2]
 gene_id <- annotations[,3]
 symbol <- annotations[,4]
 type <- annotations[,5]
-ROIs_v2 <- list(id, tx_id, gene_id, symbol, type)
-names(ROIs_v2) <- c("id", "tx_id", "gene_id", "symbol", "type")
-#a<- str_sub(unique(annotations$type), 6) # problem with "s"at the end
-a<- c("genes_promoter", "genes_1to5kb", "genes_5UTR", "genes_exon", 
-      "genes_intron,", "genes_3UTR", "genes_intergenic",
-      "cpg_island", "cpg_shore", "cpg_shelve", "cpg_inter")
+ROIs_2 <- list(id, tx_id, gene_id, symbol, type)
+names(ROIs_2) <- c("id", "tx_id", "gene_id", "symbol", "type")
 
-## using txdb
+regions <- c("genes_promoter", "genes_1to5kb", "genes_5UTR", "genes_exon", 
+             "genes_intron", "genes_3UTR", "genes_intergenic",
+             "cpg_island", "cpg_shore", "cpg_shelve", "cpg_inter")
+save(ROIs_2, regions, file = "ROIs_2_2021Jan19.RData")
+rm(annots, annotations, id, tx_id, gene_id, symbol, type, ROIs_2, regions)
+
+# Annotation - option 2.2: using txdb: -------------------------
 #BiocManager::install("TxDb.Hsapiens.UCSC.hg38.knownGene")
 library("TxDb.Hsapiens.UCSC.hg38.knownGene")
 txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
@@ -176,36 +106,30 @@ save(ROIs, file = "ROIs_2021Jan19.RData")
 rm(ROIs, transcript_reg, prom_reg, exon_reg, cds_reg, gene_reg)
 
 
-## Get the DMRs -----------------------------------------------
-Check these papers:https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0241515
-https://academic.oup.com/eep/article/3/3/dvx016/4098081?login=true
+## Get the DMRs with annotation -----------------------------------------------
+#Check these papers:https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0241515
+#https://academic.oup.com/eep/article/3/3/dvx016/4098081?login=true
+
+
+load("ROIs_2021Jan19.RData")
+load("ROIs_2_2021Jan19.RData")
+library(GenomicRanges)
 
 load("qsea_outcome_EPI_The002.RData")
-load("ROIS_2021Jan19.RData")
-#library(GenomicRanges)
 sig <- isSignificant(qseaGLM, fdr_th=0.01)
 result <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
-                    keep=sig, annotation=ROIs, norm_method="beta")
-knitr::kable(head(result))
+                     keep=sig, annotation=c(ROIs, ROIs_2), norm_method="beta")
+#result_v2<-get.ROIs_lg(result, regions)
+#knitr::kable(head(result))
+#which(result$id=="") # --> annoation using "annotatr" package provide annotation for all region 
 
-result <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
-                     keep=sig, annotation=c(ROIs, ROIs_v2), norm_method="beta")
-result <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
-                    keep=sig, annotation=ROIs_v2, norm_method="beta")
-which(result$id=="") # --> annoation using "annotatr" package provide annotation for all region 
-
-k <- matrix(NA, ncol = length(a), nrow=nrow(result))
-colnames(k) <- a
-result_v2 <- cbind(result, k)
-
-for (i in 1: nrow(result_v2)) {
-  for (region in a) {
-    if (length(grep(unlist(strsplit(region, "_"))[2], result_v2$id[i])) >0) result_v2[i, region] <- 1
-  }
-}
+load("qsea_sig_annot_2021Jan28.RData")
 
 
-gsub("[[:blank:]]","", unlist(strsplit(result_v2$id[1], ",")))
+#gsub("[[:blank:]]","", unlist(strsplit(result_v2$id[1], ",")))
+library(tidyverse)
+ggplot(data=result_v2) + geom_bar(mapping = aes(x=genes_promoter))
+sum(result_v2$genes_promoter, na.rm = T)/nrow(result_v2)
 
 # conver gene name
 get.gene_symbol <- function(res) {
