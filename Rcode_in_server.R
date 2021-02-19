@@ -120,21 +120,35 @@ for(qsea_result in qsea_outcome) {
 }
 save(qsea_sig_annot, file = "qsea_sig_annot_2021Jan28.RData")
 
-get.QC_plots <- function(qseaSet_blind) {
-  plist <- list()
+## Check the gene region: ---------------------------------------------------
+load("ROIs_2021Jan19.RData")
+load("ROIs_2_2021Jan19.RData")
+library(GenomicRanges)
+
+get.sum_region <- function(result) {
+  gene_region <-strsplit(paste(result$id, collapse = ", "), "[,]")[[1]]
+  regions <- matrix(unlist(strsplit(gene_region, "[:]")), ncol=2, byrow = T)[,1]
+  regions <- sort(unique(gsub("[[:blank:]]", "", regions)))
   
-  plist[["EPprofile"]] <- getOffset(qseaSet_blind, scale="fraction") # enrichment profile
-  plist[["EPmatrix"]] <- plotEPmatrix(qseaSet_blind) # enrichment matrix
-  plist[["CNV"]] <- plotCNV(qseaSet_blind) # a Heatmap-like Overview of the CNVs
-  pca_cgi<-getPCA(qseaSet_blind, norm_method="beta")
-  plist[["PCA"]] <- plotPCA(pca_cgi)
-  
-  return(plist)
+  output <- matrix(NA, ncol = length(regions), nrow = nrow(result))
+  colnames(output) <- regions
+  for(i in 1:nrow(result)) {
+    for(j in 1:ncol(output)) {
+      res_tem <- grep(colnames(output)[j], result$id[i])
+      if (length(res_tem) ==0) output[i,j] <- 0 else output[i,j] <- res_tem
+    }
+  }
+  return(colSums(output))
 }
 
-QC_plots <- get.QC_plots(qseaSet_blind)
-for(qsea_result in qsea_outcome) {
-  load(qsea_result)
-  QC_plots[[str_sub(qsea_result, start=1, end = -7)]] <- get.QC_plots(qseaSet_blind)
+qsea_outcome_region <- list()
+qsea_outcome <- list.files()[grep("qsea_outcome",list.files())]
+for (i in 1:length(qsea_outcome)) {
+  load(qsea_outcome[i])
+  sig <- isSignificant(qseaGLM, fdr_th=0.01)
+  result <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
+                      keep=sig, annotation=c(ROIs, ROIs_2), norm_method="beta")
+  qsea_outcome_region[[qsea_outcome[i]]] <-get.sum_region(result) 
 }
-save(QC_plots, file = "qsea_QC_plots_2021Jan28.RData")
+
+save(qsea_outcome_region, file = "qsea_outcome_region_2021Feb18.RData")

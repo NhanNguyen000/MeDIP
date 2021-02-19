@@ -32,8 +32,25 @@ library(BSgenome.Hsapiens.UCSC.hg38)
 #plotPCA(pca_cgi, bgColor=col)
 #plotPCA(pca_cgi)
 #dev.off()
+get.QC_plots <- function(qseaSet_blind) {
+  print("Enrichment profile")
+  print(getOffset(qseaSet_blind, scale="fraction"))
+  plotEPmatrix(qseaSet_blind) # enrichment matrix
+  plotCNV(qseaSet_blind) # a Heatmap-like Overview of the CNVs
+  pca_cgi<-getPCA(qseaSet_blind, norm_method="beta")
+  plotPCA(pca_cgi)
+}
 
-load("qsea_QC_plots_2021Jan28.RData")
+library(qsea)
+qsea_outcome <- list.files()[grepl("qsea_outcome_" ,list.files())]
+#QC_plots <- get.QC_plots(qseaSet_blind)
+pdf("test.pdf", onefile = T)
+for(qsea_result in qsea_outcome) {
+  load(qsea_result)
+  print(qsea_result)
+  get.QC_plots(qseaSet_blind)
+}
+dev.off()
 
 # Annotation --------------------------------------------------------
 # Annotation - option 1:---------------------------------------------
@@ -119,17 +136,88 @@ load("qsea_outcome_EPI_The002.RData")
 sig <- isSignificant(qseaGLM, fdr_th=0.01)
 result <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
                      keep=sig, annotation=c(ROIs, ROIs_2), norm_method="beta")
+
+load("qsea_outcome_EPI_The008.RData")
+sig <- isSignificant(qseaGLM, fdr_th=0.01)
+result2 <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
+                    keep=sig, annotation=c(ROIs, ROIs_2), norm_method="beta")
+
+load("qsea_outcome_EPI_The024.RData")
+sig <- isSignificant(qseaGLM, fdr_th=0.01)
+result3 <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
+                     keep=sig, annotation=c(ROIs, ROIs_2), norm_method="beta")
+
+a1<- dplyr::select(result, c(chr, window_start, window_end)) #2393 hit
+a2<- dplyr::select(result2, c(chr, window_start, window_end)) # 1931 hit
+a3<- dplyr::select(result3, c(chr, window_start, window_end)) # 14590 hit
+k1<-inner_join(a1, a2) # 476 hit
+k2<-inner_join(a2, a3) #841 hit
+k12 <- inner_join(k1, k2) # 374 hit
+
+--> usign flow diagram: https://rkabacoff.github.io/datavis/Other.html#Bubble
+
+
+
+# check the gene region:
+get.sum_region <- function(result) {
+  gene_region <-strsplit(paste(result$id, collapse = ", "), "[,]")[[1]]
+  regions <- matrix(unlist(strsplit(gene_region, "[:]")), ncol=2, byrow = T)[,1]
+  regions <- sort(unique(gsub("[[:blank:]]", "", regions)))
+  
+  output <- matrix(NA, ncol = length(regions), nrow = nrow(result))
+  colnames(output) <- regions
+  for(i in 1:nrow(result)) {
+    for(j in 1:ncol(output)) {
+      res_tem <- grep(colnames(output)[j], result$id[i])
+      if (length(res_tem) ==0) output[i,j] <- 0 else output[i,j] <- res_tem
+    }
+  }
+  return(colSums(output))
+}
+
+qsea_outcome_region <- list()
+qsea_outcome <- list.files()[grep("qsea_outcome",list.files())]
+qsea_outcome <- qsea_outcome[c(2:8, 10:16)]
+for (i in 1:length(qsea_outcome)) {
+  load(qsea_outcome[i])
+  sig <- isSignificant(qseaGLM, fdr_th=0.01)
+  result <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
+                      keep=sig, annotation=c(ROIs, ROIs_2), norm_method="beta")
+  qsea_outcome_region[[qsea_outcome[i]]] <- c(get.sum_region(result), "total_hit" = nrow(result))
+}
+
+DMR_allEPI_con <- bind_rows(qsea_outcome_region)
+DMR_allEPI_con$condition <- substring(names(qsea_outcome_region), 14, 23)
+save(qsea_outcome_region,DMR_allEPI_con ,  file = "qsea_outcome_region_2021Feb18.RData")
+load("qsea_outcome_region_2021Feb18.RData")
+
+data_test<-gather(DMR_allEPI_con, key = "test", value = "value", colnames(DMR_allEPI_con)[1:11])
+data_test$dose <- substring(data_test$condition, 5, 7)
+data_test$time <- substring(data_test$condition, 8, 11)
+
+library(tidyverse)
+library(viridis)
+ggplot(data = data_test, mapping = aes(x=time, y=value, fill = test)) + 
+  geom_bar(stat = "identity", position = "dodge") +facet_grid(dose~.) +
+  scale_color_viridis(discrete=TRUE)
+
+library(dplyr)
+data_test2 <- data_test %>% distinct(condition, dose, time, total_hit)
+ggplot(data = data_test2, mapping = aes(x=time, y=total_hit)) + 
+  geom_bar(stat= "identity") +facet_grid(dose~.) +
+  scale_color_viridis(discrete=TRUE)
+
 #result_v2<-get.ROIs_lg(result, regions)
 #knitr::kable(head(result))
 #which(result$id=="") # --> annoation using "annotatr" package provide annotation for all region 
 
-load("qsea_sig_annot_2021Jan28.RData")
+#load("qsea_sig_annot_2021Jan28.RData") # no file?
 
 
 #gsub("[[:blank:]]","", unlist(strsplit(result_v2$id[1], ",")))
 library(tidyverse)
-ggplot(data=result_v2) + geom_bar(mapping = aes(x=genes_promoter))
-sum(result_v2$genes_promoter, na.rm = T)/nrow(result_v2)
+#ggplot(data=result_v2) + geom_bar(mapping = aes(x=genes_promoter))
+#sum(result_v2$genes_promoter, na.rm = T)/nrow(result_v2)
 
 # conver gene name
 get.gene_symbol <- function(res) {
@@ -150,27 +238,62 @@ get.gene_symbol <- function(res) {
   return(GeneSymbols)
 }
 
+get.gene_type <- function(input, gene_info) {
+  gene_type <- rep(NA, length(input))
+  for (i in 1:length(input)) {
+    gene_type_tem <- c()
+    
+    if (length(grep(",", input[i])) ==0) {
+      gene_type_tem <- gene_info$type_of_gene[grep(input[i], gene_info$Symbol)]
+      if (length(gene_type_tem) >0) gene_type[i] <- gene_type_tem
+      
+    } else {
+      gene_symbol <- strsplit(input[i], "[,]")[[1]]
+      gene_type_tem <- c()
+      for (j in 1:length(gene_symbol)) {
+        gene_type_tem <- c(gene_type_tem, gene_info$type_of_gene[grep(gsub("[[:blank:]]", "", gene_symbol[j]), gene_info$Symbol)])
+      }
+      gene_type[i] <- paste(gene_type_tem, collapse = ", ")
+    }
+  }
+  return(gene_type)
+}
+
 res_gene_symbol <- get.gene_symbol(result)
 identical(res_gene_symbol$ENTREZID, result$gene_region)
 res_gene_symbol <- cbind(result, res_gene_symbol$SYMBOL)
 
 # do the volcano plot
-tmp<-res_gene_symbol[,c("TvN_log2FC", "TvN_adjPval", "res_gene_symbol$SYMBOL")]
-colnames(tmp) <- c("log2FC", "adjPval", "gene_symbol")
-# which(tmp$adjPval>0.05) # no genes
-tmp <- tmp[complete.cases(tmp),]
+tmp<-res_gene_symbol[,c("TvN_log2FC", "TvN_adjPval", "res_gene_symbol$SYMBOL")] # annoation from the txbd package
+#tmp<-res_gene_symbol[,c("TvN_log2FC", "TvN_adjPval","symbol")] # nnoation from the anotatr package
+colnames(tmp) <- c("log2FC", "adjPval", "gene_symbol") 
+#which(tmp$adjPval>0.05) # no genes
 # calculate mean for duplicated gene symbols
 library(tidyverse)
-filted_tmp<- tmp %>% group_by(gene_symbol) %>% summarize(log2FC_mean = mean(log2FC), 
-                                                adjPval_mean = mean(adjPval))
+avg_tmp<- tmp %>% group_by(gene_symbol) %>% summarize(log2FC_mean = mean(log2FC),
+                                                      adjPval_mean = mean(adjPval))
 
-Pvalue <- 0.001
+
+gene_info<- read.delim("Homo_sapiens.gene_info")
+#unique(gene_info$type_of_gene)
+gene_type <-get.gene_type(avg_tmp$gene_symbol, gene_info) 
+avg_tmp <- cbind(avg_tmp, gene_type)
+
+filted_tmp <- avg_tmp[complete.cases(avg_tmp),] # remove the row has NA in gene_symble and gene_type
+
+
+
+Pvalue <- 0.01
 Log2FC_cutoff <- 1.5
 filted_tmp$diffexpressed <- "MILD"
 filted_tmp$diffexpressed[filted_tmp$log2FC_mean > Log2FC_cutoff & filted_tmp$adjPval_mean <Pvalue] <- "UP"
 filted_tmp$diffexpressed[filted_tmp$log2FC_mean < -Log2FC_cutoff & filted_tmp$adjPval_mean <Pvalue] <- "DOWN"
-filted_tmp$label[filted_tmp$diffexpressed != "MILD"] <- filted_tmp$gene_symbol[filted_tmp$diffexpressed != "MILD"]
+#filted_tmp$label[filted_tmp$diffexpressed != "MILD"] <- filted_tmp$gene_symbol[filted_tmp$diffexpressed != "MILD"]
 
+index <- grep("ncRNA", filted_tmp$gene_type)
+filted_tmp$label2 <- NA
+filted_tmp$label2[index] <- filted_tmp$gene_symbol[index]
+a<-filted_tmp[complete.cases(filted_tmp),]
 
 library(ggrepel)
 mycolors <- c("blue", "black", "red")
@@ -190,7 +313,7 @@ ggplot(data = filted_tmp, mapping = aes(x=log2FC_mean, y=-log10(adjPval_mean), c
   geom_hline(yintercept = -log10(Pvalue), col = "red") +
   scale_color_manual(values = mycolors)
 
-# check the lncRNA -
+
 
 # covragane range
 exon_gene <- exonsBy(txdb, by="gene")
