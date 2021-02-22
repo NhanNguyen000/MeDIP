@@ -32,6 +32,7 @@ library(BSgenome.Hsapiens.UCSC.hg38)
 #plotPCA(pca_cgi, bgColor=col)
 #plotPCA(pca_cgi)
 #dev.off()
+
 get.QC_plots <- function(qseaSet_blind) {
   print("Enrichment profile")
   print(getOffset(qseaSet_blind, scale="fraction"))
@@ -51,6 +52,13 @@ for(qsea_result in qsea_outcome) {
   get.QC_plots(qseaSet_blind)
 }
 dev.off()
+
+load("qsea_outcome_EPI_The_allSamples.RData" )
+load("qsea_outcome_EPI_Tox_allSamples.RData" )
+pca_cgi<-getPCA(qseaSet_blind, norm_method="beta")
+time_series <- c("2", "8", "24", "72", "168", "240", "336")
+pca_cgi@sample_names <- rep((rep(time_series, each=3)), 2)
+plotPCA(pca_cgi, bg=rep(c("red", "green"), each=21))
 
 # Annotation --------------------------------------------------------
 # Annotation - option 1:---------------------------------------------
@@ -134,29 +142,61 @@ library(GenomicRanges)
 
 load("qsea_outcome_EPI_The002.RData")
 sig <- isSignificant(qseaGLM, fdr_th=0.01)
-result <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
+The_002 <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
                      keep=sig, annotation=c(ROIs, ROIs_2), norm_method="beta")
 
 load("qsea_outcome_EPI_The008.RData")
 sig <- isSignificant(qseaGLM, fdr_th=0.01)
-result2 <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
+The_008 <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
                     keep=sig, annotation=c(ROIs, ROIs_2), norm_method="beta")
 
 load("qsea_outcome_EPI_The024.RData")
 sig <- isSignificant(qseaGLM, fdr_th=0.01)
-result3 <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
+The_024 <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
                      keep=sig, annotation=c(ROIs, ROIs_2), norm_method="beta")
 
-a1<- dplyr::select(result, c(chr, window_start, window_end)) #2393 hit
-a2<- dplyr::select(result2, c(chr, window_start, window_end)) # 1931 hit
-a3<- dplyr::select(result3, c(chr, window_start, window_end)) # 14590 hit
+time_series <- c("002", "008", "024", "072", "168", "240", "336")
+EPI_The <- list()
+for(time in time_series) {
+  load(paste0("qsea_outcome_EPI_The", time, ".RData"))
+  sig <- isSignificant(qseaGLM, fdr_th=0.01)
+  output_tem <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
+                       keep=sig, annotation=c(ROIs, ROIs_2), norm_method="beta")
+  EPI_The[[time]] <- dplyr::select(output_tem, c(chr, window_start, window_end))
+  
+}
+
+# using flow diagram:
+a1<- dplyr::select(The_002, c(chr, window_start, window_end)) #2393 hit
+a2<- dplyr::select(The_008, c(chr, window_start, window_end)) # 1931 hit
+a3<- dplyr::select(The_024, c(chr, window_start, window_end)) # 14590 hit
 k1<-inner_join(a1, a2) # 476 hit
 k2<-inner_join(a2, a3) #841 hit
 k12 <- inner_join(k1, k2) # 374 hit
 
---> usign flow diagram: https://rkabacoff.github.io/datavis/Other.html#Bubble
+nodes = data.frame("name" = paste0("The_", names(EPI_The)))
+links<-matrix(NA, nrow = 1, ncol=3)
+for (i in 1:length(EPI_The)) {
+  for (j in (i+1):length(EPI_The)) {
+    outcome_tem <- c((i-1), (j-1), nrow(inner_join(EPI_The[[i]], EPI_The[[j]])))
+    links <- rbind(links, outcome_tem)
+  }
+}
+links <- as.data.frame(links[-1,])
+names(links) = c("source", "target", "value")
+links$group <- as.factor(ifelse(links$source==0, "002", 
+                                ifelse(links$source == 1, "008", 
+                                       ifelse(links$source==2, "024", 
+                                              ifelse(links$source==3, "072",
+                                                     ifelse(links$source==4, "168",
+                                                            ifelse(links$source==5, "240", "336")))))))
 
-
+nodes$group <- as.factor(substring(nodes$name, 5, 9))
+sankeyNetwork(Links = links, Nodes = nodes,
+              Source = "source", Target = "target",
+              Value = "value", NodeID = "name",
+              LinkGroup = 'group', NodeGroup = "group",
+              fontSize= 12, nodeWidth = 30)
 
 # check the gene region:
 get.sum_region <- function(result) {
