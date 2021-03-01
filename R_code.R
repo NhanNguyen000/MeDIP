@@ -154,7 +154,15 @@ load("qsea_outcome_EPI_The024.RData")
 sig <- isSignificant(qseaGLM, fdr_th=0.01)
 The_024 <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
                      keep=sig, annotation=c(ROIs, ROIs_2), norm_method="beta")
+The_002$time <- rep("002", nrow(The_002))
+The_008$time <- rep("008", nrow(The_008))
+The_024$time <- rep("024", nrow(The_024))
 
+The <- rbind(The_002, The_008, The_024)
+-> vendiagram
+
+
+## Make flow chart & Venn diagram: -----------------------------------------------------------
 time_series <- c("002", "008", "024", "072", "168", "240", "336")
 EPI_The <- list()
 for(time in time_series) {
@@ -167,13 +175,8 @@ for(time in time_series) {
 }
 
 # using flow diagram:
-a1<- dplyr::select(The_002, c(chr, window_start, window_end)) #2393 hit
-a2<- dplyr::select(The_008, c(chr, window_start, window_end)) # 1931 hit
-a3<- dplyr::select(The_024, c(chr, window_start, window_end)) # 14590 hit
-k1<-inner_join(a1, a2) # 476 hit
-k2<-inner_join(a2, a3) #841 hit
-k12 <- inner_join(k1, k2) # 374 hit
-
+library(networkD3)
+library(dplyr)
 nodes = data.frame("name" = paste0("The_", names(EPI_The)))
 links<-matrix(NA, nrow = 1, ncol=3)
 for (i in 1:length(EPI_The)) {
@@ -198,7 +201,36 @@ sankeyNetwork(Links = links, Nodes = nodes,
               LinkGroup = 'group', NodeGroup = "group",
               fontSize= 12, nodeWidth = 30)
 
-# check the gene region:
+# Venn diagram:
+library(venn)
+
+gene_ROIs <- function(data) {
+  gene_ROIs <- paste(data$chr, data$window_start, data$window_end, sep = "_")
+  return(gene_ROIs)
+} 
+a<-venn(list(gene_ROIs(EPI_The$`002`), gene_ROIs(EPI_The$`008`), gene_ROIs(EPI_The$`024`),
+          gene_ROIs(EPI_The$`072`), gene_ROIs(EPI_The$`168`), gene_ROIs(EPI_The$`240`), gene_ROIs(EPI_The$`336`)),
+        snames = names(EPI_The), ilcs = 0.8, sncs = 1)
+
+a2<-inner_join(EPI_The$`002`, EPI_The$`008`)
+a3<-intersect(EPI_The$`002`$window_start, EPI_The$`008`$window_start)
+
+library(RVenn)
+test <- Venn(list("EPI_The_002"=gene_ROIs(EPI_The$`002`), "EPI_The_008"=gene_ROIs(EPI_The$`008`), 
+                  "EPI_The_024"=gene_ROIs(EPI_The$`024`), "EPI_The_072"=gene_ROIs(EPI_The$`072`), 
+                  "EPI_The_168"=gene_ROIs(EPI_The$`168`), "EPI_The_240"=gene_ROIs(EPI_The$`240`), 
+                  "EPI_The_336"=gene_ROIs(EPI_The$`336`)))
+
+de_gene_ROIs <- function(gene_ROIs_list) {
+  outcome <- matrix(unlist(strsplit(gene_ROIs_list, "_")), ncol = 3, byrow = T)
+  colnames(outcome) <- c("chr", "window_start", "window_end" )
+  return(outcome)
+}
+k<- de_gene_ROIs(overlap(test))
+png("test_2.png")
+setmap(test, element_clustering = FALSE)
+dev.off()
+# check the gene region: ------------------------------------------------------------
 get.sum_region <- function(result) {
   gene_region <-strsplit(paste(result$id, collapse = ", "), "[,]")[[1]]
   regions <- matrix(unlist(strsplit(gene_region, "[:]")), ncol=2, byrow = T)[,1]
