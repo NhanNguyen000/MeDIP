@@ -12,7 +12,6 @@ library(qsea)
 library(BSgenome.Hsapiens.UCSC.hg38)
 
 ## QSEA code (run in serve) -------------------------------
-
 ## Load file for analysis ------------------------------------------------
 # Quality control: enrichment profile
 #getOffset(qseaSet_blind, scale="fraction")
@@ -92,6 +91,120 @@ regions <- c("genes_promoter", "genes_1to5kb", "genes_5UTR", "genes_exon",
 save(ROIs_2, regions, file = "ROIs_2_2021Jan19.RData")
 rm(annots, annotations, id, tx_id, gene_id, symbol, type, ROIs_2, regions)
 
+test <- makeGRangesFromDataFrame(The_002)
+dm_annotated = annotate_regions(
+  regions = test,
+  annotations = annotations,
+  ignore.strand = TRUE,
+  quiet = FALSE)
+df_dm_annotated = data.frame(dm_annotated)
+print(head(df_dm_annotated))
+
+a <- na.omit(df_dm_annotated)
+MeDIP_para <- c("seqnames", "start", "end", "width", "strand",
+                "annot.gene_id", "annot.symbol", "annot.type" )
+a1 <- a[, MeDIP_para]
+a2 <- a1 %>% distinct()
+
+b <- a2 %>% group_by(annot.symbol) %>% mutate(count = n())
+unique(b$count) # from 1 to 10
+g<- unique(b$annot.symbol[which(b$count >=4)]) # 137 genes more than 4 methylation detections
+g<- unique(b$annot.symbol[which(b$count >=5)]) # 54 genes more than 4 methylation detections
+
+test <- matrix(NA, ncol = 2, nrow = length(g))
+test[,1] <- g
+check_list <- c("hg38_genes_1to5kb", "hg38_genes_promoters")
+for(i in 1:nrow(test)) {
+  data_tem <- b[which(b$annot.symbol == test[i,1]),]
+  test[i, 2] <- sum(data_tem$annot.type %in% check_list)
+}
+
+dim(test)
+test <- na.omit(test)
+
+test2 <- test
+for(i in 1:nrow(test2)) {
+  data_tem <- b[which(b$annot.symbol == test2[i,1]),]
+  test2[i, 2] <- sum(data_tem$annot.type %in% "hg38_genes_promoters")
+}
+test2 <- na.omit(test2) # all have Methylation at promoters
+
+write.csv(test2[,1], "test.txt", col.names = F, row.names = F)
+# need to check the MeDIP in cpg island?
+
+
+d <- b[which(b$annot.symbol == "LOC101928626" ),]
+
+DiffMeth_Annotated<-df_dm_annotated %>%
+  tidyr::fill(annot.symbol) %>% distinct() %>%
+  dplyr::group_by(seqnames, start, end, annot.symbol) %>%
+  dplyr::summarise(Annotation=paste(unique(annot.type), collapse = ";"), Test=paste(unique(annot.id), collapse = ";"))
+
+--> gene expression of the gene have DMRs regions --> PCA + check hyper or hypo
+
+# grep both gene + cpg island
+
+a <-The_002[intersect(grep("hg38_genes_promoters",The_002$type), grep("hg38_cpg_islands", The_002$type)),]
+--> check some genes: CHL1, CHL1-AS2
+b<- a[-which(a$symbol == "NA"),]
+
+--> check with the gene expression in RNAseq: MeDIP log2FC up/down --> gene expression log2 up/down
+
+# from: https://www.researchgate.net/post/How_to_find_cpg_islands_in_promoter_region_of_given_gene
+
+a<- df_dm_annotated[which(df_dm_annotated$annot.type == "hg38_genes_promoters"),]
+b<- df_dm_annotated[which(df_dm_annotated$annot.type %in% c("hg38_genes_promoters", "hg38_genes_1to5kb")),]
+
+d<- df_dm_annotated[which(df_dm_annotated$annot.type %in% c("hg38_cpg_islands", "hg38_cpg_shores")),]
+
+f <- merge(b, d, by=c("seqnames", "start", "end", "width", 
+                      "strand",  "annot.seqnames"))
+# get the gene with cpg island
+
+unique(df_dm_annotated$annot.symbol)
+notch1_subset = subset(df_dm_annotated, annot.symbol == 'NOTCH1')
+
+
+dm_annsum = summarize_annotations(
+  annotated_regions = dm_annotated,
+  quiet = TRUE)
+print(dm_annsum)
+
+annots_order = c(
+  'hg38_genes_1to5kb',
+  'hg38_genes_promoters',
+  'hg38_genes_5UTRs',
+  'hg38_genes_exons',
+  'hg38_genes_introns',
+  'hg38_genes_3UTRs',
+  'hg38_genes_intergenic') #,
+#  'hg38_cpg_island',  'hg38_cpg_shore',
+#  'hg38_cpg_shelve', 'hg_cpg_inter')
+dm_vs_kg_annotations = plot_annotation(
+  annotated_regions = dm_annotated,
+  annotation_order = annots_order,
+  plot_title = '# of Sites Tested for DM annotated on chr9',
+  x_label = 'knownGene Annotations',
+  y_label = 'Count')
+print(dm_vs_kg_annotations)
+
+dm_vs_coannotations = plot_coannotations(
+  annotated_regions = dm_annotated,
+  annotation_order = annots_order,
+  axes_label = 'Annotations',
+  plot_title = 'Regions in Pairs of Annotations')
+print(dm_vs_coannotations)
+
+library(org.Hs.eg.db)
+Gene_Enseml_Ids <- select(org.Hs.eg.db, keys = unique(df_dm_annotated$annot.symbol), 
+                          columns = c("SYMBOL",  "ENSEMBL"), keytype = "SYMBOL")
+Gene_Enseml_Ids$SYMBOL[which(is.na(Gene_Enseml_Ids$ENSEMBL))] # check 55 lncRNAs such as ELF3-AS1
+k<-read.csv("D:/TGX/GitHub/lncRNA-EPI/data/Ensemble_mart_export_NN_20190815.txt")
+k2 <- k[which(k$Gene.stable.ID %in% Gene_Enseml_Ids$ENSEMBL), ]
+
+g <- unique(k2$Gene.stable.ID[k2$Gene.type == "lncRNA"]) #-> 125 hit
+unique(length(k2$Gene.stable.ID[which(k2$Gene.type=="protein_coding")])) # --> 1000 hit
+
 # Annotation - option 2.2: using txdb: -------------------------
 #BiocManager::install("TxDb.Hsapiens.UCSC.hg38.knownGene")
 library("TxDb.Hsapiens.UCSC.hg38.knownGene")
@@ -144,6 +257,8 @@ load("qsea_outcome_EPI_The002.RData")
 sig <- isSignificant(qseaGLM, fdr_th=0.01)
 The_002 <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
                      keep=sig, annotation=c(ROIs, ROIs_2), norm_method="beta")
+The_002 <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
+                     keep=sig, annotation= ROIs_2, norm_method="beta")
 
 load("qsea_outcome_EPI_The008.RData")
 sig <- isSignificant(qseaGLM, fdr_th=0.01)
@@ -165,12 +280,14 @@ The <- rbind(The_002, The_008, The_024)
 ## Make flow chart & Venn diagram: -----------------------------------------------------------
 time_series <- c("002", "008", "024", "072", "168", "240", "336")
 EPI_The <- list()
+EPI_The_full <- list()
 for(time in time_series) {
   load(paste0("qsea_outcome_EPI_The", time, ".RData"))
   sig <- isSignificant(qseaGLM, fdr_th=0.01)
   output_tem <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
                        keep=sig, annotation=c(ROIs, ROIs_2), norm_method="beta")
   EPI_The[[time]] <- dplyr::select(output_tem, c(chr, window_start, window_end))
+  EPI_The_full[[time]] <- output_tem
   
 }
 
@@ -226,10 +343,45 @@ de_gene_ROIs <- function(gene_ROIs_list) {
   colnames(outcome) <- c("chr", "window_start", "window_end" )
   return(outcome)
 }
-k<- de_gene_ROIs(overlap(test))
+
+library(tidyverse)
+k<- as_tibble(de_gene_ROIs(overlap(test)))
+k$window_start <- as.numeric(k$window_start)
+k$window_end <- as.numeric(k$window_end)
+
+k2 <- merge(k, EPI_The_full$`002`, by=c("chr", "window_start", "window_end"))
+View(k2[which(k2$symbol != "NA"),])
+
+load("D:/TGX/GitHub/lncRNA-EPI/data/EPIdata_Cardiac_NN_20191112.RData")
+load("D:/TGX/GitHub/lncRNA-EPI/data/Con_DF2data_Cardiac_NN_20191112.RData")
+
+# ZSWIM5 -> not much difference
+EPI$expected_count["ENSG00000162415",]
+Con_DF2$expected_count["ENSG00000162415",]
+
+# Cnot3 -> not same direction?
+EPI$expected_count["ENSG00000088038",]
+Con_DF2$expected_count["ENSG00000088038",]
+
+# Tenm2 # much difference
+EPI$expected_count["ENSG00000145934",]
+Con_DF2$expected_count["ENSG00000145934",]
+
+
+# clustering
 png("test_2.png")
 setmap(test, element_clustering = FALSE)
 dev.off()
+
+er = enrichment_test(test, 1, 7)
+qplot(er$Overlap_Counts, geom = "blank") +
+  geom_histogram(fill = "lemonchiffon4", bins = 8, color = "black") +
+  geom_vline(xintercept = length(overlap(test, c(1, 7))), color = "firebrick2",
+             size = 2, linetype = "dashed", alpha = 0.7) +
+  ggtitle("Null Distribution") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_x_continuous(name = "Overlap Counts") +
+  scale_y_continuous(name = "Frequency")
 # check the gene region: ------------------------------------------------------------
 get.sum_region <- function(result) {
   gene_region <-strsplit(paste(result$id, collapse = ", "), "[,]")[[1]]
@@ -335,6 +487,18 @@ res_gene_symbol <- get.gene_symbol(result)
 identical(res_gene_symbol$ENTREZID, result$gene_region)
 res_gene_symbol <- cbind(result, res_gene_symbol$SYMBOL)
 
+a<- get.gene_symbol(result)
+b<-as.vector(a$SYMBOL[!is.na(a$SYMBOL)])
+b2<-unique(gsub("[[:blank:]]","", unlist(strsplit(b, ","))))
+library(org.Hs.eg.db)
+Gene_Enseml_Ids <- select(org.Hs.eg.db, keys = b2, 
+                          columns = c("SYMBOL",  "ENSEMBL"), keytype = "SYMBOL")
+k<-read.csv("D:/TGX/GitHub/lncRNA-EPI/data/Ensemble_mart_export_NN_20190815.txt")
+k2 <- k[which(k$Gene.stable.ID %in% Gene_Enseml_Ids$ENSEMBL), ]
+
+g <- unique(k2$Gene.stable.ID[k2$Gene.type == "lncRNA"]) #-> 100 hit
+unique(length(k2$Gene.stable.ID[which(k2$Gene.type=="protein_coding")])) # --> 1000 hit
+       
 # do the volcano plot
 tmp<-res_gene_symbol[,c("TvN_log2FC", "TvN_adjPval", "res_gene_symbol$SYMBOL")] # annoation from the txbd package
 #tmp<-res_gene_symbol[,c("TvN_log2FC", "TvN_adjPval","symbol")] # nnoation from the anotatr package
