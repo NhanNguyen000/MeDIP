@@ -1,18 +1,19 @@
-## QSEA code -------------------------------
+## Load packages and function -------------------------------
 if (!requireNamespace("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
 
 #BiocManager::install("qsea")
 #BiocManager::install("BSgenome")
 library("BSgenome")
-available.genomes()
+#available.genomes()
 
 #BiocManager::install("BSgenome.Hsapiens.UCSC.hg38")
 library(qsea)
 library(BSgenome.Hsapiens.UCSC.hg38)
 
+source("R_functions.R")
 ## QSEA code (run in serve) -------------------------------
-## Load file for analysis ------------------------------------------------
+## Load file for analysis
 # Quality control: enrichment profile
 #getOffset(qseaSet_blind, scale="fraction")
 #png("EPi_matrix.png")
@@ -59,18 +60,8 @@ time_series <- c("2", "8", "24", "72", "168", "240", "336")
 pca_cgi@sample_names <- rep((rep(time_series, each=3)), 2)
 plotPCA(pca_cgi, bg=rep(c("red", "green"), each=21))
 
-# Annotation --------------------------------------------------------
-# Annotation - option 1:---------------------------------------------
-#library(GenomicRanges)
-#sig <- isSignificant(qseaGLM, fdr_th=0.01) # No region was selected in EPI_The_002 vs EPI_The_008,but have sig region  EPI_Thee_002 vs control
-#library("rtracklayer")
-#gtfRangeData <- import.gff("/ngs-data/analysis/hecatos/NhanNguyen/Genome/bwa_genome_CRCh38.101/Homo_sapiens.GRCh38.101.gtf.gz")
-#myGRanges <- as(gtfRangeData, "GRanges")
-#result <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
-#                     keep=sig, annotation=list(the_ranges=myGRanges), norm_method="beta") # MAKE LIST 
-
-
-# Annotation - option 2.1: using annotatr package: -------------------------
+# Make annotation --------------------------------------------------------
+# Annotation - option 2.1: using annotatr package
 #explaining the annotation: https://bioconductor.org/packages/release/bioc/vignettes/annotatr/inst/doc/annotatr-vignette.html
 library(annotatr)
 annots = c('hg38_cpgs', 'hg38_basicgenes', 'hg38_genes_intergenic')
@@ -91,109 +82,64 @@ regions <- c("genes_promoter", "genes_1to5kb", "genes_5UTR", "genes_exon",
 save(ROIs_2, regions, file = "ROIs_2_2021Jan19.RData")
 rm(annots, annotations, id, tx_id, gene_id, symbol, type, ROIs_2, regions)
 
-test <- makeGRangesFromDataFrame(The_002)
-dm_annotated = annotate_regions(
-  regions = test,
-  annotations = annotations,
-  ignore.strand = TRUE,
-  quiet = FALSE)
-df_dm_annotated = data.frame(dm_annotated)
-print(head(df_dm_annotated))
+## Get the DMRs with annotation -----------------------------------------------
+#Check these papers:https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0241515
+#https://academic.oup.com/eep/article/3/3/dvx016/4098081?login=true
 
-a <- na.omit(df_dm_annotated)
-MeDIP_para <- c("seqnames", "start", "end", "width", "strand",
-                "annot.gene_id", "annot.symbol", "annot.type" )
-a1 <- a[, MeDIP_para]
-a2 <- a1 %>% distinct()
+load("ROIs_2_2021Jan19.RData")
+library(GenomicRanges)
 
-b <- a2 %>% group_by(annot.symbol) %>% mutate(count = n())
-unique(b$count) # from 1 to 10
-g<- unique(b$annot.symbol[which(b$count >=4)]) # 137 genes more than 4 methylation detections
-g<- unique(b$annot.symbol[which(b$count >=5)]) # 54 genes more than 4 methylation detections
+load("qsea_outcome_EPI_The002.RData")
+sig <- isSignificant(qseaGLM, fdr_th=0.01)
+The_002 <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
+                     keep=sig, annotation=c(ROIs_2), norm_method="beta")
 
-test <- matrix(NA, ncol = 2, nrow = length(g))
-test[,1] <- g
-check_list <- c("hg38_genes_1to5kb", "hg38_genes_promoters")
-for(i in 1:nrow(test)) {
-  data_tem <- b[which(b$annot.symbol == test[i,1]),]
-  test[i, 2] <- sum(data_tem$annot.type %in% check_list)
+# using annotatr package: -------------------------
+library(annotatr)
+annots = c('hg38_cpgs', 'hg38_basicgenes', 'hg38_genes_intergenic')
+annotations = build_annotations(genome = 'hg38', annotations = annots)
+genome(annotations) <- "BSgenome.Hsapiens.UCSC.hg38"
+
+DMR_cutoff <- 4 # genes have at leat this cutoff DMR (methylation detections) are selected
+list_promoter_regions <- c("hg38_genes_1to5kb", "hg38_genes_promoters")
+Pvalue <- 0.01; Log2FC_cutoff <- 1.5
+
+time <- c("002", "008", "024", "072", "168", "240", "336")
+avg_DMR_genes_The <- list()
+plist <- list()
+for(i in time) {
+  load(paste0("qsea_outcome_EPI_The", i, ".RData"))
+  sig <- isSignificant(qseaGLM, fdr_th=0.01)
+  QSEA_outcome <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
+                       keep=sig, annotation=c(ROIs_2), norm_method="beta")
+  avg_DMR_genes_The[[i]] <- get.avg_DMR_genes(QSEA_outcome, DMR_cutoff, list_promoter_regions)
+  plist[[i]] <- get.volcano_plot(pre.volcano_plot(avg_DMR_genes_The[[i]], Pvalue, Log2FC_cutoff),Pvalue, Log2FC_cutoff)
 }
+pdf("The_vocalno.pdf", onefile = T)
+print(plist)
+dev.off()
 
-dim(test)
-test <- na.omit(test)
-
-test2 <- test
-for(i in 1:nrow(test2)) {
-  data_tem <- b[which(b$annot.symbol == test2[i,1]),]
-  test2[i, 2] <- sum(data_tem$annot.type %in% "hg38_genes_promoters")
+avg_DMR_genes_Tox <- list()
+plist <- list()
+for(i in time) {
+  load(paste0("qsea_outcome_EPI_Tox", i, ".RData"))
+  sig <- isSignificant(qseaGLM, fdr_th=0.01)
+  QSEA_outcome <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
+                            keep=sig, annotation=c(ROIs_2), norm_method="beta")
+  avg_DMR_genes_Tox[[i]] <- get.avg_DMR_genes(QSEA_outcome, DMR_cutoff, list_promoter_regions)
+  plist[[i]] <- get.volcano_plot(pre.volcano_plot(avg_DMR_genes_Tox[[i]], Pvalue, Log2FC_cutoff),Pvalue, Log2FC_cutoff)
 }
-test2 <- na.omit(test2) # all have Methylation at promoters
+pdf("Tox_vocalno.pdf", onefile = T)
+print(plist)
+dev.off()
 
-write.csv(test2[,1], "test.txt", col.names = F, row.names = F)
+
+write.table(avg_DMR_genes$annot.symbol, "test.txt", col.names = F, row.names = F)
+
 # need to check the MeDIP in cpg island?
-
-
-d <- b[which(b$annot.symbol == "LOC101928626" ),]
-
-DiffMeth_Annotated<-df_dm_annotated %>%
-  tidyr::fill(annot.symbol) %>% distinct() %>%
-  dplyr::group_by(seqnames, start, end, annot.symbol) %>%
-  dplyr::summarise(Annotation=paste(unique(annot.type), collapse = ";"), Test=paste(unique(annot.id), collapse = ";"))
-
---> gene expression of the gene have DMRs regions --> PCA + check hyper or hypo
-
-# grep both gene + cpg island
-
-a <-The_002[intersect(grep("hg38_genes_promoters",The_002$type), grep("hg38_cpg_islands", The_002$type)),]
---> check some genes: CHL1, CHL1-AS2
-b<- a[-which(a$symbol == "NA"),]
-
---> check with the gene expression in RNAseq: MeDIP log2FC up/down --> gene expression log2 up/down
-
+# check with the gene expression in RNAseq: MeDIP log2FC up/down --> gene expression log2 up/down
 # from: https://www.researchgate.net/post/How_to_find_cpg_islands_in_promoter_region_of_given_gene
-
-a<- df_dm_annotated[which(df_dm_annotated$annot.type == "hg38_genes_promoters"),]
-b<- df_dm_annotated[which(df_dm_annotated$annot.type %in% c("hg38_genes_promoters", "hg38_genes_1to5kb")),]
-
-d<- df_dm_annotated[which(df_dm_annotated$annot.type %in% c("hg38_cpg_islands", "hg38_cpg_shores")),]
-
-f <- merge(b, d, by=c("seqnames", "start", "end", "width", 
-                      "strand",  "annot.seqnames"))
 # get the gene with cpg island
-
-unique(df_dm_annotated$annot.symbol)
-notch1_subset = subset(df_dm_annotated, annot.symbol == 'NOTCH1')
-
-
-dm_annsum = summarize_annotations(
-  annotated_regions = dm_annotated,
-  quiet = TRUE)
-print(dm_annsum)
-
-annots_order = c(
-  'hg38_genes_1to5kb',
-  'hg38_genes_promoters',
-  'hg38_genes_5UTRs',
-  'hg38_genes_exons',
-  'hg38_genes_introns',
-  'hg38_genes_3UTRs',
-  'hg38_genes_intergenic') #,
-#  'hg38_cpg_island',  'hg38_cpg_shore',
-#  'hg38_cpg_shelve', 'hg_cpg_inter')
-dm_vs_kg_annotations = plot_annotation(
-  annotated_regions = dm_annotated,
-  annotation_order = annots_order,
-  plot_title = '# of Sites Tested for DM annotated on chr9',
-  x_label = 'knownGene Annotations',
-  y_label = 'Count')
-print(dm_vs_kg_annotations)
-
-dm_vs_coannotations = plot_coannotations(
-  annotated_regions = dm_annotated,
-  annotation_order = annots_order,
-  axes_label = 'Annotations',
-  plot_title = 'Regions in Pairs of Annotations')
-print(dm_vs_coannotations)
 
 library(org.Hs.eg.db)
 Gene_Enseml_Ids <- select(org.Hs.eg.db, keys = unique(df_dm_annotated$annot.symbol), 
@@ -205,60 +151,7 @@ k2 <- k[which(k$Gene.stable.ID %in% Gene_Enseml_Ids$ENSEMBL), ]
 g <- unique(k2$Gene.stable.ID[k2$Gene.type == "lncRNA"]) #-> 125 hit
 unique(length(k2$Gene.stable.ID[which(k2$Gene.type=="protein_coding")])) # --> 1000 hit
 
-# Annotation - option 2.2: using txdb: -------------------------
-#BiocManager::install("TxDb.Hsapiens.UCSC.hg38.knownGene")
-library("TxDb.Hsapiens.UCSC.hg38.knownGene")
-txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
-txdb
-methods(class=class(txdb))
-
-seqlevels(txdb)
-columns(txdb)
-keytypes(txdb)
-
-#transcript
-genetic_features <- c("tx_id", "tx_name", "gene_id")
-transcript_reg <- transcripts(txdb, columns = genetic_features)
-prom_reg <- promoters(txdb, upstream=2000, downstream=2000, columns = genetic_features) #2000 nu up TSS, and 2000 nu down TSS
-exon_reg <- exons(txdb, columns = c("exon_id", genetic_features))
-cds_reg <- cds(txdb, columns = c("cds_id", genetic_features))
-gene_reg <- genes(txdb)
-
-rm(txdb, genetic_features)
-
-#gene_reg <- genes(txdb, single.strand.genes.only=FALSE)
-#gene_reg2 <- genes(txdb, columns = genetic_features, single.strand.genes.only=FALSE)
-#threeUTR <- threeUTRsByTranscript(txdb)
-#fiveUTR <- fiveUTRsByTranscript(txdb)
-
-#fix the genome name
-genome(transcript_reg) <- "BSgenome.Hsapiens.UCSC.hg38"
-genome(prom_reg) <- "BSgenome.Hsapiens.UCSC.hg38"
-genome(exon_reg) <- "BSgenome.Hsapiens.UCSC.hg38"
-genome(cds_reg) <- "BSgenome.Hsapiens.UCSC.hg38"
-genome(gene_reg) <- "BSgenome.Hsapiens.UCSC.hg38"
-
-ROIs <- list(transcript_reg, prom_reg, exon_reg, cds_reg, gene_reg)
-names(ROIs) <- c("transcript", "promoter", "exon", "coding_region", "gene_region")
-save(ROIs, file = "ROIs_2021Jan19.RData")
-rm(ROIs, transcript_reg, prom_reg, exon_reg, cds_reg, gene_reg)
-
-
-## Get the DMRs with annotation -----------------------------------------------
-#Check these papers:https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0241515
-#https://academic.oup.com/eep/article/3/3/dvx016/4098081?login=true
-
-
-load("ROIs_2021Jan19.RData")
-load("ROIs_2_2021Jan19.RData")
-library(GenomicRanges)
-
-load("qsea_outcome_EPI_The002.RData")
-sig <- isSignificant(qseaGLM, fdr_th=0.01)
-The_002 <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
-                     keep=sig, annotation=c(ROIs, ROIs_2), norm_method="beta")
-The_002 <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
-                     keep=sig, annotation= ROIs_2, norm_method="beta")
+#-------------------------------
 
 load("qsea_outcome_EPI_The008.RData")
 sig <- isSignificant(qseaGLM, fdr_th=0.01)
