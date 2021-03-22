@@ -133,6 +133,38 @@ pdf("Tox_vocalno.pdf", onefile = T)
 print(plist)
 dev.off()
 
+## explain how to pick the cut off:
+library(tidyverse)
+DMR_data <- makeGRangesFromDataFrame(QSEA_outcome)
+dm_annotated = annotate_regions(regions = DMR_data,
+                                 annotations = annotations, ignore.strand = TRUE, quiet = FALSE)
+
+Select_info <- c("seqnames", "start", "end", "width", "strand",
+                 "annot.gene_id", "annot.symbol", "annot.type" )
+
+
+DMR_gene_annotated <- na.omit(data.frame(dm_annotated))[, Select_info] %>% distinct() %>% # remove the dublicated rows
+  group_by(annot.symbol) %>% mutate(count = n()) %>% # count the DMRs per gene
+  select(c("annot.symbol", "count")) %>% distinct()
+  
+ggplot(DMR_gene_annotated) + geom_bar(mapping = aes(x=count, fill = count)) + 
+  scale_x_continuous(name="Number of DMRs", breaks=seq(0, 10, 1)) +
+  geom_vline(xintercept = 3.5, colour = "red")
+# pathway analysis:
+library(pathfindR)
+
+time <- c("002", "008", "024", "072", "168", "240", "336")
+output_The <- list()
+clustered_The <- list()
+pdf("pathway_The.pdf", onefile = T)
+for (i in time){
+  input <- as.data.frame(avg_DMR_genes_The[[i]][,c(1:3)])
+  output_The[[i]] <- run_pathfindR(input)
+  clustered_The[[i]] <- cluster_enriched_terms(output_df)
+  term_gene_heatmap(result_df = output_The[[i]], genes_df = input)
+}
+dev.off()
+
 
 write.table(avg_DMR_genes$annot.symbol, "test.txt", col.names = F, row.names = F)
 
