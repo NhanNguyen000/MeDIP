@@ -1,0 +1,86 @@
+## QSEA code -------------------------------
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+
+#BiocManager::install("qsea")
+#BiocManager::install("BSgenome")
+library("BSgenome")
+available.genomes()
+
+# try to run Con_DF data:
+#BiocManager::install("BSgenome.Hsapiens.UCSC.hg38")
+library(qsea)
+library(BSgenome.Hsapiens.UCSC.hg38)
+
+## QSEA code -------------------------------
+
+folder_Con <- "/ngs-data-2/analysis/NhanNguyen/MeDIP/ConFlucDMSO/"
+folder_EPI <- "/ngs-data-2/analysis/NhanNguyen/MeDIP/EPI/"
+#file_EPI <- 6794:6796
+#file_Con <- 10:12
+
+qsea.get_DMR <- function(samples, output_name) {
+  qseaSet=createQseaSet(sampleTable=samples, 
+                        BSgenome="BSgenome.Hsapiens.UCSC.hg38", chr.select=paste0("chr", 1:22),
+                        window_size=500)
+  qseaSet
+  
+  qseaSet <- addCoverage(qseaSet, uniquePos=TRUE, paired=TRUE)  
+  qseaSet <- addCNV(qseaSet, file_name="file_name",window_size=2e6, 
+                    paired=TRUE, parallel=FALSE, MeDIP=TRUE)
+  qseaSet <- addLibraryFactors(qseaSet) 
+  qseaSet <- addPatternDensity(qseaSet, "CG", name="CpG") # have a warning message about the masks selected: AGAPS, AMB
+  qseaSet <- addOffset(qseaSet, enrichmentPattern = "CpG")
+  
+  wd <- which(getRegions(qseaSet)$CpG_density >1 & getRegions(qseaSet)$CpG_density <15)
+  signal <- (15-getRegions(qseaSet)$CpG_density[wd]*0.55/15+0.25)
+  qseaSet_blind <- addEnrichmentParameters(qseaSet, enrichmentPattern="CpG",
+                                           windowIdx=wd, signal=signal)
+  
+  # Differential methylation analysis
+  design<-model.matrix(~group, getSampleTable(qseaSet_blind))
+  qseaGLM<-fitNBglm(qseaSet_blind, design, norm_method="beta")
+  qseaGLM<-addContrast(qseaSet_blind, qseaGLM, coef=2, name="TvN")
+  
+  save(qseaSet_blind, qseaGLM, file= paste0("qsea_outcome_", output_name, ".RData"))
+}
+
+
+data_number <- as.data.frame(matrix(NA, nrow = 7, ncol = 3))
+rownames(data_number) <-c("002", "008", "024", "072", "168", "240", "336")
+colnames(data_number) <- c("Con", "EPI_The", "EPI_Tox")
+
+data_number$Con <- seq(10, 30, 3)
+data_number$EPI_The <- seq(6794, 6814, 3)
+data_number$EPI_Tox <- seq(6815, 6835, 3)
+
+for(time in row.names(data_number)) {
+  file_Con <- data_number[time, "Con"] : (data_number[time, "Con"]+2)
+  
+  for(EPI_Dose in c("EPI_The", "EPI_Tox")) {
+    file_EPI <- data_number[time, EPI_Dose] : (data_number[time, EPI_Dose]+2)
+    
+    samples<-data.frame(sample_name=c(paste0("EPI_L", file_EPI), paste0("ConDMSO_S", file_Con)),
+                        file_name=c(paste0(folder_EPI, "EPI_L", file_EPI, "_pe.sorted.bam"), 
+                                    paste0(folder_Con, "Cardiac_FlucDMSO_S", file_Con, "_pe.sorted.bam")),
+                        group=c(rep("EPI", 3), rep("Control", 3)), stringsAsFactors=FALSE)
+    
+    qsea.get_DMR(samples, output_name = paste0(EPI_Dose, time))
+  }
+}
+
+ConDMSO <- seq(10, 30)
+EPI_The <- seq(6794, 6814)
+EPI_Dox <- seq(6815, 6835)
+
+The_samples <- data.frame(samples_name = c(paste0("EPI_The_L", EPI_The), paste0("ConDMSO_S", ConDMSO)),
+                         file_name = c(paste0(folder_EPI, "EPI_L", EPI_The, "_pe.sorted.bam"), 
+                                       paste0(folder_Con, "Cardiac_FlucDMSO_S", ConDMSO, "_pe.sorted.bam")),
+                         group = c(rep("EPI_The", length(EPI_The)), rep("Control", length(ConDMSO))), stringsAsFactors = FALSE)
+qsea.get_DMR(The_samples, output_name = "EPI_The_allSamples")
+
+ToX_samples <- data.frame(samples_name = c(paste0("RPI_Tox_L", RPI_Tox), paste0("ConDMSO_S", ConDMSO)),
+                          file_name = c(paste0(folder_EPI, "EPI_L", EPI_Tox, "_pe.sorted.bam"), 
+                                        paste0(folder_Con, "Cardiac_FlucDMSO_S", ConDMSO, "_Pe.sorted.bam")),
+                          group = c(rep("EPI_Tox", length(EPI_Tox)), rep("Control", length(ConDMSO))), stringsAsFactors = FALSE)
+

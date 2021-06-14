@@ -1,0 +1,117 @@
+XSession-x2go: X session started for nnguyen at Mon Dec 21 08:39:55 CET 2020
+dbus-update-activation-environment: setting DBUS_SESSION_BUS_ADDRESS=unix:abstract=/tmp/dbus-22Q9cdnddJ,guid=5802d138a9c4baf4acb830175fe0514b
+dbus-update-activation-environment: setting DISPLAY=:51
+dbus-update-activation-environment: setting XAUTHORITY=/home/nnguyen/.Xauthority
+dbus-update-activation-environment: warning: error sending to systemd: org.freedesktop.DBus.Error.Spawn.ChildExited: Process org.freedesktop.systemd1 exited with status 1
+xhost:  must be on local machine to add or remove hosts.
+localuser:nnguyen being added to access control list
+xhost:  must be on local machine to add or remove hosts.
+dbus-update-activation-environment: setting QT_ACCESSIBILITY=1
+dbus-update-activation-environment: warning: error sending to systemd: org.freedesktop.DBus.Error.Spawn.ChildExited: Process org.freedesktop.systemd1 exited with status 1
+dbus-update-activation-environment: setting PULSE_CLIENTCONFIG=/home/nnguyen/.x2go/C-nnguyen-51-1608536386_stDXFCE_dp32/.pulse-client.conf
+dbus-update-activation-environment: setting SSH_CONNECTION=137.120.158.57 52072 137.120.16.44 22
+dbus-update-activation-environment: setting X2GO_AGENT_PID=24065
+dbus-update-activation-environment: setting LANG=en_US.UTF-8
+dbus-update-activation-environment: setting QT_GRAPHICSSYSTEM=native
+dbus-update-activation-environment: setting DISPLAY=:51
+dbus-update-activation-environment: setting JAVA_HOME=/usr/lib/jvm/java-11-oracle
+dbus-update-activation-environment: setting J2SDKDIR=/usr/lib/jvm/java-11-oracle
+dbus-update-activation-environment: setting SSH_AUTH_SOCK=/home/nnguyen/.x2go/C-nnguyen-51-1608536386_stDXFCE_dp32/ssh-agent.PID
+dbus-update-activation-environment: setting QT_X11_NO_MITSHM=1
+dbus-update-activation-environment: setting S_COLORS=auto
+dbus-update-activation-environment: setting DERBY_HOME=/usr/lib/jvm/java-11-oracle/db
+dbus-update-activation-environment: setting USER=nnguyen
+dbus-update-activation-environment: setting PWD=/home/nnguyen
+dbus-update-activation-environment: setting HOME=/home/nnguyen
+dbus-update-activation-environment: setting J2REDIR=/usr/lib/jvm/java-11-oracle
+dbus-update-activation-environment: setting SSH_CLIENT=137.120.158.57 52072 22
+dbus-update-activation-environment: setting QT_ACCESSIBILITY=1
+dbus-update-activation-environment: setting XSESSION_EXEC=xfce4-session
+dbus-update-activation-environment: setting https_proxy=http://proxy.unimaas.nl:3128
+dbus-update-activation-environment: setting XDG_DATA_DIRS=/usr/local/share:/usr/share:/var/lib/snapd/desktop
+dbus-update-activation-environment: setting http_proxy=http://proxy.unimaas.nl:3128
+dbus-update-activation-environment: setting MAIL=/var/mail/nnguyen
+dbus-update-activation-environment: setting TERM=dumb
+dbus-update-activation-environment: setting SHELL=/bin/bash
+dbus-update-activation-environment: setting IM_CONFIG_PHASE=1
+dbus-update-activation-environment: setting GPG_AGENT_INFO=/run/user/99999/gnupg/S.gpg-agent:0:1
+dbus-update-activation-environment: setting X2GO_SESSION=nnguyen-51-1608536386_stDXFCE_dp32
+dbus-update-activation-environment: setting SHLVL=4
+dbus-update-activation-environment: setting LOGNAME=nnguyen
+dbus-update-activation-environment: setting DBUS_SESSION_BUS_ADDRESS=unix:abstract=/tmp/dbus-22Q9cdnddJ,guid=5802d138a9c4baf4acb830175fe0514b
+dbus-update-activation-environment: setting XDG_RUNTIME_DIR=/run/user/99999
+dbus-update-activation-environment: setting XAUTHORITY=/home/nnguyen/.Xauthority
+dbus-update-activation-environment: setting PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/share/tools/bowtie2-2.3.4.1:/share/tools/RSEM-1.3.1:/share/tools/salmon-master/bin:/share/tools/miRge2/bin:/snap/bin:/usr/lib/jvm/java-11-oracle/bin:/usr/lib/jvm/java-11-oracle/db/bin:/home/nnguyen/homer/bin/:/usr/lib/jvm/java-11-oracle/bin:/usr/lib/jvm/java-11-oracle/db/bin
+dbus-update-activation-environment: setting STARTUP=/usr/bin/im-launch /usr/bin/env LD_LIBRARY_PATH= xfce4-session
+dbus-update-activation-environment: setting _=/usr/bin/dbus-update-activation-environment
+dbus-update-activation-environment: warning: error sending to systemd: org.freedesktop.DBus.Error.Spawn.ChildExited: Process org.freedesktop.systemd1 exited with status 1
+gpg-agent[24414]: WARNING: "--write-env-file" is an obsolete option - it has no effect
+gpg-agent: a gpg-agent is already running - not starting a new one
+
+(xfce4-session:24290): xfce4-session-WARNING **: 08:39:57.920: gpg-agent returned no PID in the variables
+
+(xfce4-session:24290): xfce4-session-WARNING **: 08:39:57.934: xfsm_manager_load_session: Something wrong with /home/nnguyen/.cache/sessions/xfce4-session-ngs-ada:51, Does it exist? Permissions issue?
+Gtk-Message: 08:39:59.969: Failed to load module "atk-bridge"
+Gtk-Message: 08:39:59.969: Failed to load module "atk-bridge"
+Gtk-Message: 08:39:59.969: Failed to load module "atk-bridge"
+Gtk-Message: 08:39:59.970: Failed to load module "atk-bridge"
+Gtk-Message: 08:39:59.975: Failed to load module "atk-bridge"
+
+(xfce4-session:24290): xfce4-session-WARNING **: 08:40:00.025: Unable to launch "update-notifier" (specified by autostart/update-notifier.desktop): Failed to execute child process “update-notifier” (No such file or directory)
+
+(xfce4-session:24290): xfce4-session-WARNING **: 08:40:00.047: Unable to launch "light-locker" (specified by autostart/light-locker.desktop): Failed to execute child process “light-locker” (No such file or directory)
+Gtk-Message: 08:40:00.060: Failed to load module "atk-bridge"
+
+(xfsettingsd:24449): xfsettingsd-WARNING **: 08:40:00.097: Unknown mode '1280x657 @ 60.0' for output default, aborting.
+
+(xfsettingsd:24449): xfsettingsd-CRITICAL **: 08:40:00.099: Your XI is too old (1.3) version 1.4 is required.
+
+(xfsettingsd:24449): xfsettingsd-CRITICAL **: 08:40:00.101: Failed to change the keyboard repeat
+
+(xfwm4:24436): xfwm4-WARNING **: 08:40:00.115: The display does not support the XComposite extension.
+
+(xfwm4:24436): xfwm4-WARNING **: 08:40:00.115: Compositing manager disabled.
+
+(xfwm4:24436): xfwm4-WARNING **: 08:40:00.125: output size (800x600) and logical screen size (1280x657) do not match
+
+(xfsettingsd:24449): xfsettingsd-WARNING **: 08:40:00.183: Failed to get the _NET_NUMBER_OF_DESKTOPS property.
+Failure: Module initialization failed
+Gtk-Message: 08:40:00.309: Failed to load module "atk-bridge"
+Gtk-Message: 08:40:00.320: Failed to load module "atk-bridge"
+dbus-daemon[24422]: Activating service name='org.a11y.atspi.Registry' requested by ':1.0' (uid=99999 pid=24451 comm="/usr/lib/policykit-1-gnome/polkit-gnome-authentica" label="unconfined")
+dbus-daemon[24422]: Successfully activated service 'org.a11y.atspi.Registry'
+SpiRegistry daemon is running with well-known name - org.a11y.atspi.Registry
+
+(polkit-gnome-authentication-agent-1:24451): GLib-CRITICAL **: 08:40:00.333: g_variant_new_string: assertion 'string != NULL' failed
+
+(polkit-gnome-authentication-agent-1:24451): polkit-gnome-1-WARNING **: 08:40:00.334: Failed to register client: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name org.gnome.SessionManager was not provided by any .service files
+
+(nm-applet:24458): Gtk-WARNING **: 08:40:01.487: Can't set a parent on widget which has a parent
+
+(nm-applet:24458): Gdk-CRITICAL **: 08:40:01.711: gdk_window_thaw_toplevel_updates: assertion 'window->update_and_descendants_freeze_count > 0' failed
+** Message: 08:40:02.296: Initializing bcompare-ext extension
+** Message: 08:40:02.296: Init Stock Icons
+Gtk-Message: 08:40:08.288: Failed to load module "atk-bridge"
+** Message: 08:40:08.459: Initializing bcompare-ext extension
+** Message: 08:40:08.459: Init Stock Icons
+Gtk-Message: 08:40:08.561: Failed to load module "atk-bridge"
+/usr/lib/python3/dist-packages/blueman/plugins/applet/AppIndicator.py:8: PyGIWarning: AppIndicator3 was imported without specifying a version first. Use gi.require_version('AppIndicator3', '0.1') before import to ensure that the right version gets loaded.
+  from gi.repository import AppIndicator3 as girAppIndicator
+ERROR:dbus.proxies:Introspect error on org.bluez:/org/bluez: dbus.exceptions.DBusException: org.freedesktop.DBus.Error.AccessDenied: Rejected send message, 2 matched rules; type="method_call", sender=":1.665" (uid=99999 pid=24445 comm="/usr/bin/python3 /usr/bin/blueman-applet " label="unconfined") interface="org.freedesktop.DBus.Introspectable" member="Introspect" error name="(unset)" requested_reply="0" destination="org.bluez" (bus)
+ERROR:dbus.proxies:Introspect error on org.bluez:/: dbus.exceptions.DBusException: org.freedesktop.DBus.Error.AccessDenied: Rejected send message, 2 matched rules; type="method_call", sender=":1.665" (uid=99999 pid=24445 comm="/usr/bin/python3 /usr/bin/blueman-applet " label="unconfined") interface="org.freedesktop.DBus.Introspectable" member="Introspect" error name="(unset)" requested_reply="0" destination="org.bluez" (bus)
+ERROR:dbus.proxies:Introspect error on org.bluez:/: dbus.exceptions.DBusException: org.freedesktop.DBus.Error.AccessDenied: Rejected send message, 2 matched rules; type="method_call", sender=":1.665" (uid=99999 pid=24445 comm="/usr/bin/python3 /usr/bin/blueman-applet " label="unconfined") interface="org.freedesktop.DBus.Introspectable" member="Introspect" error name="(unset)" requested_reply="0" destination="org.bluez" (bus)
+
+(wrapper-1.0:24495): Gdk-WARNING **: 08:40:26.933: /build/gtk+2.0-AoeliP/gtk+2.0-2.24.32/gdk/x11/gdkdrawable-x11.c:952 drawable is not a pixmap or window
+
+(wrapper-1.0:24495): Gdk-WARNING **: 08:40:26.934: /build/gtk+2.0-AoeliP/gtk+2.0-2.24.32/gdk/x11/gdkdrawable-x11.c:952 drawable is not a pixmap or window
+
+(nm-applet:24458): Gtk-CRITICAL **: 18:22:06.544: gtk_widget_destroy: assertion 'GTK_IS_WIDGET (widget)' failed
+
+(nm-applet:24458): Gtk-CRITICAL **: 18:22:06.545: gtk_widget_destroy: assertion 'GTK_IS_WIDGET (widget)' failed
+
+(nm-applet:24458): Gtk-WARNING **: 18:22:06.652: Can't set a parent on widget which has a parent
+Gtk-Message: 12:47:01.760: Failed to load module "atk-bridge"
+Gtk-Message: 12:47:02.088: Failed to load module "atk-bridge"
+
+(gedit:6532): Gtk-WARNING **: 09:44:47.400: Calling org.xfce.Session.Manager.Inhibit failed: GDBus.Error:org.freedesktop.DBus.Error.UnknownMethod: Method "Inhibit" with signature "susu" on interface "org.xfce.Session.Manager" doesn't exist
+

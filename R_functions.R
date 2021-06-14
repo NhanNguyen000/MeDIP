@@ -1,3 +1,12 @@
+get.QC_plots <- function(qseaSet_blind) {
+  print("Enrichment profile")
+  print(getOffset(qseaSet_blind, scale="fraction"))
+  plotEPmatrix(qseaSet_blind) # enrichment matrix
+  plotCNV(qseaSet_blind) # a Heatmap-like Overview of the CNVs
+  pca_cgi<-getPCA(qseaSet_blind, norm_method="beta")
+  plotPCA(pca_cgi)
+}
+
 get.avg_DMR_genes <- function(QSEA_outcome, DMR_cutoff, list_promoter_regions) {
   library(tidyverse)
   DMR_data <- makeGRangesFromDataFrame(QSEA_outcome)
@@ -37,4 +46,20 @@ get.volcano_plot<- function(avg_DMR_genes, Pvalue, Log2FC_cutoff) {
     geom_vline(xintercept = c(-Log2FC_cutoff, Log2FC_cutoff), col = "red") +
     geom_hline(yintercept = -log10(Pvalue), col = "red") +
     scale_color_manual(values = mycolors)
+}
+
+get.sum_region <- function(result) {
+  gene_region <-strsplit(paste(result$id, collapse = ", "), "[,]")[[1]]
+  regions <- matrix(unlist(strsplit(gene_region, "[:]")), ncol=2, byrow = T)[,1]
+  regions <- sort(unique(gsub("[[:blank:]]", "", regions)))
+  
+  output <- matrix(NA, ncol = length(regions), nrow = nrow(result))
+  colnames(output) <- regions
+  for(i in 1:nrow(result)) {
+    for(j in 1:ncol(output)) {
+      res_tem <- grep(colnames(output)[j], result$id[i])
+      if (length(res_tem) ==0) output[i,j] <- 0 else output[i,j] <- res_tem
+    }
+  }
+  return(colSums(output))
 }
