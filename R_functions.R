@@ -20,7 +20,7 @@ get.avg_DMR_genes <- function(QSEA_outcome, DMR_cutoff, list_promoter_regions) {
     group_by(annot.symbol) %>% mutate(count = n()) %>% filter(count >= DMR_cutoff) %>% # remove gene has low DMR than cutoff 
     mutate(promoter = sum(annot.type %in% list_promoter_regions)) %>% filter(promoter > 0) # remove gene have no DMR in promoter resgions
   
-  DMR_gene_annotated <- merge(DMR_gene_annotated, The_002[,c("chr", "window_start", "window_end",
+  DMR_gene_annotated <- merge(DMR_gene_annotated, QSEA_outcome[,c("chr", "window_start", "window_end",
                                                              "CpG_density", "TvN_log2FC", "TvN_pvalue", "TvN_adjPval")], 
                               by.x = c("seqnames", "start", "end"), by.y = c("chr", "window_start", "window_end"))
   

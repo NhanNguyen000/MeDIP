@@ -64,9 +64,9 @@ rm(annots, annotations, id, tx_id, gene_id, symbol, type, ROIs_2, regions)
 library(qsea)
 qsea_outcome <- list.files("./data/")[grepl("Rif" ,list.files("./data/"))]
 #QC_plots <- get.QC_plots(qseaSet_blind)
-pdf("test.pdf", onefile = T)
+pdf("Rif_qsea_overview.pdf", onefile = T)
 for(qsea_result in qsea_outcome) {
-  load(qsea_result)
+  load(paste0("./data/", qsea_result))
   print(qsea_result)
   get.QC_plots(qseaSet_blind)
 }
@@ -75,9 +75,9 @@ dev.off()
 load("./data/qsea_outcome_Rif_The_allSamples.RData")
 load("./data/qsea_outcome_Rif_Tox_allSamples.RData")
 pca_cgi<-getPCA(qseaSet_blind, norm_method="beta")
-time_series <- c("2", "8", "24", "72", "168", "240", "336")
+time_series <- c("0", "72", "168")
 pca_cgi@sample_names <- rep((rep(time_series, each=3)), 2)
-plotPCA(pca_cgi, bg=rep(c("red", "green"), each=21))
+plotPCA(pca_cgi, bg=rep(c("red", "green"), each=9))
 
 # using annotatr package: -------------------------
 #BiocManager::install("annotatr")
@@ -110,6 +110,8 @@ print(plist)
 dev.off()
 save(avg_DMR_genes, file = "Rif_avg_DMR_gene.RData")
 
+load("./outcome/Rif_avg_DMR_gene.RData")
+
 ## run code for EPI MeDIP data ------------------------------------------------
 library(qsea)
 qsea_outcome <- list.files("./data/")[grepl("EPI" ,list.files("./data/"))]
@@ -136,10 +138,10 @@ plotPCA(pca_cgi, bg=rep(c("red", "green"), each=21))
 load("./data/ROIs_2_2021Jan19.RData")
 library(GenomicRanges)
 
-load("./data/qsea_outcome_EPI_The002.RData")
-sig <- isSignificant(qseaGLM, fdr_th=0.01)
-The_002 <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
-                     keep=sig, annotation=c(ROIs_2), norm_method="beta")
+#load("./data/qsea_outcome_EPI_The002.RData")
+#sig <- isSignificant(qseaGLM, fdr_th=0.01)
+#The_002 <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
+#                     keep=sig, annotation=c(ROIs_2), norm_method="beta")
 
 # using annotatr package & make vocanol plot - DMRs of EPI: -------------------------
 #BiocManager::install("annotatr")
