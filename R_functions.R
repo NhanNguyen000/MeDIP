@@ -7,7 +7,7 @@ get.QC_plots <- function(qseaSet_blind) {
   plotPCA(pca_cgi)
 }
 
-get.avg_DMR_genes <- function(QSEA_outcome, DMR_cutoff, list_promoter_regions) {
+get.avg_DMR_genes <- function(QSEA_outcome, DMR_cutoff, list_promoter_regions, annotations) {
   library(tidyverse)
   DMR_data <- makeGRangesFromDataFrame(QSEA_outcome)
   dm_annotated = annotate_regions( regions = DMR_data,

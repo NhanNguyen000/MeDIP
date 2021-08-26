@@ -116,26 +116,29 @@ load("./outcome/Rif_avg_DMR_gene.RData")
 library(qsea)
 qsea_outcome <- list.files("./data/")[grepl("EPI" ,list.files("./data/"))]
 #QC_plots <- get.QC_plots(qseaSet_blind)
-pdf("test.pdf", onefile = T)
+pdf("EPI_qsea_overview.pdf", onefile = T)
 for(qsea_result in qsea_outcome) {
-  load(qsea_result)
+  load(paste0("./data/",qsea_result))
   print(qsea_result)
   get.QC_plots(qseaSet_blind)
 }
 dev.off()
 
-load("./data/qsea_outcome_EPI_The_allSamples.RData")
-load("./data/qsea_outcome_EPI_Tox_allSamples.RData")
-pca_cgi<-getPCA(qseaSet_blind, norm_method="beta")
-time_series <- c("2", "8", "24", "72", "168", "240", "336")
-pca_cgi@sample_names <- rep((rep(time_series, each=3)), 2)
-plotPCA(pca_cgi, bg=rep(c("red", "green"), each=21))
+pdf("EPI_PCAplots.pdf", onefile = T)
+for(dose in c("The", "Tox")) {
+  load(paste0("./data/qsea_outcome_EPI_", dose, "_allSamples.RData"))
+  pca_cgi<-getPCA(qseaSet_blind, norm_method="beta")
+  time_series <- c("2", "8", "24", "72", "168", "240", "336")
+  pca_cgi@sample_names <- rep((rep(time_series, each=3)), 2)
+  plotPCA(pca_cgi, bg=rep(c("red", "green"), each=21))
+}
+dev.off()
 
 ## Get the DMRs of EPI with annotation -----------------------------------------------
 #Check these papers:https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0241515
 #https://academic.oup.com/eep/article/3/3/dvx016/4098081?login=true
 
-load("./data/ROIs_2_2021Jan19.RData")
+#load("./data/ROIs_2_2021Jan19.RData")
 library(GenomicRanges)
 
 #load("./data/qsea_outcome_EPI_The002.RData")
@@ -149,9 +152,11 @@ library(GenomicRanges)
 library(annotatr)
 library(org.Hs.eg.db)
 
-annots = c('hg38_cpgs', 'hg38_basicgenes', 'hg38_genes_intergenic')
-annotations = build_annotations(genome = 'hg38', annotations = annots)
-genome(annotations) <- "BSgenome.Hsapiens.UCSC.hg38"
+#annots = c('hg38_cpgs', 'hg38_basicgenes', 'hg38_genes_intergenic')
+#annotations = build_annotations(genome = 'hg38', annotations = annots)
+#genome(annotations) <- "BSgenome.Hsapiens.UCSC.hg38"
+#save(annotations, file = "annotations.RData")
+load("annotations.RData")
 
 DMR_cutoff <- 4 # genes have at leat this cutoff DMR (methylation detections) are selected
 list_promoter_regions <- c("hg38_genes_1to5kb", "hg38_genes_promoters")
@@ -162,11 +167,12 @@ time <- c("002", "008", "024", "072", "168", "240", "336")
 avg_DMR_genes_The <- list()
 plist <- list()
 for(i in time) {
+  rm(qseaGLM, qseaSet_blind)
   load(paste0("./data/qsea_outcome_EPI_The", i, ".RData"))
   sig <- isSignificant(qseaGLM, fdr_th=0.01)
   QSEA_outcome <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
                        keep=sig, annotation=c(ROIs_2), norm_method="beta")
-  avg_DMR_genes_The[[i]] <- get.avg_DMR_genes(QSEA_outcome, DMR_cutoff, list_promoter_regions)
+  avg_DMR_genes_The[[i]] <- get.avg_DMR_genes(QSEA_outcome, DMR_cutoff, list_promoter_regions, annotations)
   plist[[i]] <- get.volcano_plot(pre.volcano_plot(avg_DMR_genes_The[[i]], Pvalue, Log2FC_cutoff),Pvalue, Log2FC_cutoff)
 }
 pdf("The_vocalno.pdf", onefile = T)
@@ -176,11 +182,12 @@ dev.off()
 avg_DMR_genes_Tox <- list()
 plist <- list()
 for(i in time) {
+  rm(qseaGLM, qseaSet_blind)
   load(paste0("./data/qsea_outcome_EPI_Tox", i, ".RData"))
   sig <- isSignificant(qseaGLM, fdr_th=0.01)
   QSEA_outcome <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
                             keep=sig, annotation=c(ROIs_2), norm_method="beta")
-  avg_DMR_genes_Tox[[i]] <- get.avg_DMR_genes(QSEA_outcome, DMR_cutoff, list_promoter_regions)
+  avg_DMR_genes_Tox[[i]] <- get.avg_DMR_genes(QSEA_outcome, DMR_cutoff, list_promoter_regions, annotations)
   plist[[i]] <- get.volcano_plot(pre.volcano_plot(avg_DMR_genes_Tox[[i]], Pvalue, Log2FC_cutoff),Pvalue, Log2FC_cutoff)
 }
 pdf("Tox_vocalno.pdf", onefile = T)
