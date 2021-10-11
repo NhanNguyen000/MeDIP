@@ -13,50 +13,161 @@ library(BSgenome.Hsapiens.UCSC.hg38)
 
 # QSEA pipeline (R code in server) --------------------------------------------
 
-# Extract and annotate DMRs ---------------------------------------------------
+# Futher analysis in Rstudio ---------------------------------------------------
 library(GenomicRanges)
 library(qsea)
 library(tidyverse)
+library(annotatr)
 source("R_functions.R")
 load("./data/ROIs_2_2021Jan19.RData")
 load("./data/annotations_2021Sep24.RData")
-load("./data/qsea_outcome_EPI_allSamples_20210922.RData")
 
-# quality check
-getOffset(qseaSet_blind, scale = "fraction")
-plotEPmatrix(qseaSet_blind)
+# Extract and annotate DMRs for all samples --------------------------------------
+load("./data/qsea_outcome_EPI_all_samples_20211001.RData")
 
-# PCA plot
-pca_cgi <- getPCA(qseaSet_blind, norm_method="beta")
-pca_cgi@sample_names <- substring(pca_cgi@sample_names, 1, 11)
-plotPCA(pca_cgi, 
-        bg = ifelse(substring(pca_cgi@sample_names,1,7) =="EPI_Tox", "red", 
-                    ifelse(substring(pca_cgi@sample_names,1,7)=="EPI_The", "blue", "green")))
-
-# identify and annotate the DMRs
 sig <- isSignificant(qseaGLM, fdr_th=0.01)
-QSEA_outcome <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
+QSEA_outcome <- makeTable(qseaSet, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet), 
                           keep=sig, annotation=c(ROIs_2), norm_method="beta")
 annotated_genes <-get.annotated_genes(QSEA_outcome, annotations)
 
-# select genes based interest criteria
-# 5% gene with high DMRs count in gene regions
+# select 5% gene with high DMRs count in gene regions
 gene_DMRs <-  annotated_genes[which(annotated_genes$DMR_count>quantile(annotated_genes$DMR_count, .95)),]
 ggplot(annotated_genes, aes(x=DMR_count)) + geom_histogram(binwidth = 1, color="gray") + 
   geom_histogram(data=gene_DMRs, aes(x=DMR_count), binwidth=1, color="transparent", fill="red")
-
-# 5% gene with high DMRs count in promoter regions
+dim(annotated_genes)
+View(head(annotated_genes))
+dim(gene_DMRs)
+View(head(gene_DMRs))
+# select 5% gene with high DMRs count in promoter regions
 genes_DMRs_promoter <- gene_DMRs[which(gene_DMRs$DMR_in_promoter_count>quantile(gene_DMRs$DMR_in_promoter_count, .95)),] 
 ggplot(gene_DMRs, aes(x=DMR_in_promoter_count)) + geom_histogram(binwidth = 1) +
   geom_histogram(data=genes_DMRs_promoter, aes(x=DMR_in_promoter_count), binwidth = 1, color="transparent", fill="red")
+dim(genes_DMRs_promoter)
+View(head(genes_DMRs_promoter))
 
 # calculate average log2FC and p-values per gene & volvano plot
 avg_genes_DMRs_protomer <- get.avg_DMRs_genes(genes_DMRs_promoter, QSEA_outcome)
-selected_genes <- avg_selected_genes[which(abs(avg_selected_genes$log2FC_avg)>0.5),]
+selected_genes <- avg_genes_DMRs_protomer[which(abs(avg_genes_DMRs_protomer$log2FC_avg)>0.5),]
+dim(selected_genes)
 
 avg_genes <- get.avg_DMRs_genes(annotated_genes, QSEA_outcome)
 volcano_gene <- pre.volcano_plot(avg_genes, selected_genes$annot.symbol, Log2FC_cutoff =0.5)
 get.volcano_plot(volcano_gene, Log2FC_cutoff = 0.5)
+write.csv(selected_genes, file = "selected_genes_20211006.csv")
+
+# make the pdf file
+pdf("EPI_allSamples.pdf", onefile=TRUE)
+ggplot(annotated_genes, aes(x=DMR_count)) + geom_histogram(binwidth = 1, color="gray") + 
+  geom_histogram(data=gene_DMRs, aes(x=DMR_count), binwidth=1, color="transparent", fill="red")
+ggplot(gene_DMRs, aes(x=DMR_in_promoter_count)) + geom_histogram(binwidth = 1) +
+  geom_histogram(data=genes_DMRs_promoter, aes(x=DMR_in_promoter_count), binwidth = 1, color="transparent", fill="red")
+get.volcano_plot(volcano_gene, Log2FC_cutoff = 0.5)
+dev.off()
+
+# clean the terminal
+rm(sig, QSEA_outcome, annotated_genes, gene_DMRs, genes_DMRs_promoter, avg_genes_DMRs_protomer, selected_genes, avg_genes, volcano_gene)
+
+# Extract and annotate DMRs per time points --------------------------------------
+load("./data/qsea_outcome_EPI_per_timepoint_20211001.RData")
+names(outcome)
+
+EPI_time <- list()
+for (treat in names(outcome)) {
+  sig <- isSignificant(outcome[[treat]]$qseaGLM, fdr_th = 0.01)
+  QSEA_outcome <- makeTable(outcome[[treat]]$qseaSet, glm = outcome[[treat]]$qseaGLM,
+                            groupMeans=getSampleGroups(outcome[[treat]]$qseaSet),
+                            keep=sig, annotation = c(ROIs_2), norm_methods = "beta")
+  annotated_genes <- get.annotated_genes(QSEA_outcome, annotations)
+  
+  gene_DMRs <-  annotated_genes[which(annotated_genes$DMR_count>quantile(annotated_genes$DMR_count, .95)),]
+  genes_DMRs_promoter <- gene_DMRs[which(gene_DMRs$DMR_in_promoter_count>quantile(gene_DMRs$DMR_in_promoter_count, .95)),] 
+  avg_genes_DMRs_protomer <- get.avg_DMRs_genes(genes_DMRs_promoter, QSEA_outcome)
+  selected_genes <- avg_genes_DMRs_protomer[which(abs(avg_genes_DMRs_protomer$log2FC_avg)>0.5),]
+  avg_genes <- get.avg_DMRs_genes(annotated_genes, QSEA_outcome)
+  volcano_gene <- pre.volcano_plot(avg_genes, selected_genes$annot.symbol, Log2FC_cutoff =0.5)
+  
+  pdf(paste0("EPI_", treat, ".pdf"), onefile=TRUE)
+  ggplot(annotated_genes, aes(x=DMR_count)) + geom_histogram(binwidth = 1, color="gray") + 
+    geom_histogram(data=gene_DMRs, aes(x=DMR_count), binwidth=1, color="transparent", fill="red")
+  ggplot(gene_DMRs, aes(x=DMR_in_promoter_count)) + geom_histogram(binwidth = 1) +
+    geom_histogram(data=genes_DMRs_promoter, aes(x=DMR_in_promoter_count), binwidth = 1, color="transparent", fill="red")
+  get.volcano_plot(volcano_gene, Log2FC_cutoff = 0.5)
+  dev.off()
+  
+  EPI_time[[treat]] <- list("sig" = sig, "QSEA_outcome" = QSEA_outcome, "annotated_genes" = annotated_genes,
+                            "gene_DMRs" = gene_DMRs, "genes_DMRs_promoter" = genes_DMRs_promoter, "avg_genes_DMRs_protomer" = avg_genes_DMRs_protomer, 
+                            "selected_genes" = selected_genes, "avg_genes" = avg_genes, "volcano_gene" = volcano_gene)  
+  rm(sig, QSEA_outcome, annotated_genes, gene_DMRs, genes_DMRs_promoter,
+     avg_genes_DMRs_protomer, selected_genes, avg_genes, volcano_gene)
+}
+
+names(EPI_time)
+names(EPI_time$'002')
+rm(outcome)
+# Extract and annotate DMRs per does and time points --------------------------------------
+load("./data/qsea_outcome_EPI_per_dose_timepoint_20211001.RData")
+names(outcome)
+
+names(outcome)
+
+EPI_dose_time <- list()
+for (treat in names(outcome)) {
+  sig <- isSignificant(outcome[[treat]]$qseaGLM, fdr_th = 0.01)
+  QSEA_outcome <- makeTable(outcome[[treat]]$qseaSet, glm = outcome[[treat]]$qseaGLM,
+                            groupMeans=getSampleGroups(outcome[[treat]]$qseaSet),
+                            keep=sig, annotation = c(ROIs_2), norm_methods = "beta")
+  annotated_genes <- get.annotated_genes(QSEA_outcome, annotations)
+  
+  gene_DMRs <-  annotated_genes[which(annotated_genes$DMR_count>quantile(annotated_genes$DMR_count, .95)),]
+  genes_DMRs_promoter <- gene_DMRs[which(gene_DMRs$DMR_in_promoter_count>quantile(gene_DMRs$DMR_in_promoter_count, .95)),] 
+  avg_genes_DMRs_protomer <- get.avg_DMRs_genes(genes_DMRs_promoter, QSEA_outcome)
+  selected_genes <- avg_genes_DMRs_protomer[which(abs(avg_genes_DMRs_protomer$log2FC_avg)>0.5),]
+  avg_genes <- get.avg_DMRs_genes(annotated_genes, QSEA_outcome)
+  volcano_gene <- pre.volcano_plot(avg_genes, selected_genes$annot.symbol, Log2FC_cutoff =0.5)
+  
+  pdf(paste0("EPI_", treat, ".pdf"), onefile=TRUE)
+  ggplot(annotated_genes, aes(x=DMR_count)) + geom_histogram(binwidth = 1, color="gray") + 
+    geom_histogram(data=gene_DMRs, aes(x=DMR_count), binwidth=1, color="transparent", fill="red")
+  ggplot(gene_DMRs, aes(x=DMR_in_promoter_count)) + geom_histogram(binwidth = 1) +
+    geom_histogram(data=genes_DMRs_promoter, aes(x=DMR_in_promoter_count), binwidth = 1, color="transparent", fill="red")
+  get.volcano_plot(volcano_gene, Log2FC_cutoff = 0.5)
+  dev.off()
+  
+  EPI_dose_time[[treat]] <- list("sig" = sig, "QSEA_outcome" = QSEA_outcome, "annotated_genes" = annotated_genes,
+                                 "gene_DMRs" = gene_DMRs, "genes_DMRs_promoter" = genes_DMRs_promoter,
+                                 "avg_genes_DMRs_protomer" = avg_genes_DMRs_protomer, 
+                                 "selected_genes" = selected_genes, "avg_genes" = avg_genes, "volcano_gene" = volcano_gene)
+  rm(sig, QSEA_outcome, annotated_genes, gene_DMRs,
+     genes_DMRs_promoter, avg_genes_DMRs_protomer, selected_genes, avg_genes, volcano_gene)
+}
+
+names(EPI_dose_time$"002_EPI_The")
+Time <- substring(names(EPI_dose_time), 1,3)
+Dose <- substring(names(EPI_dose_time), 9,11)
+
+DMRs_num <- c()
+gene_num <- c()
+selected_num <- c()
+for(i in names(EPI_dose_time)) {
+  DMRs_num <- c(DMRs_num, nrow(EPI_dose_time[[i]]$QSEA_outcome))
+  gene_num <- c(gene_num, nrow(EPI_dose_time[[i]]$annotated_genes))
+  selected_num <- c(selected_num, nrow(EPI_dose_time[[i]]$selected_genes))
+}
+
+dat_plot <- as.data.frame(cbind(Dose, Time, DMRs_num, gene_num, selected_num))
+dat_plot
+
+pdf("EPI_dose_timepoint_graphs.pdf", onefile=TRUE)
+ggplot(dat_plot, aes(x=Time, y=as.numeric(DMRs_num), colour = Dose)) + 
+  geom_point(aes(shape=Dose), size = 5) + geom_line(aes(group = Dose)) + 
+  scale_y_continuous(limits=c(0, 15000)) +
+  theme(text = element_text(size=15))
+
+ggplot(dat_plot, aes(x=Time, y=as.numeric(gene_num), colour = Dose)) + 
+  geom_point(aes(shape=Dose), size = 5) + geom_line(aes(group = Dose)) + 
+  scale_y_continuous(limits=c(0, 7000)) +
+  theme(text = element_text(size=15))
+dev.off()
 
 # Make annotation --------------------------------------------------------
 # Annotation - option 2.1: using annotatr package

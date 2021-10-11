@@ -1,5 +1,6 @@
 get.annotated_genes <- function(QSEA_outcome, annotations) {
   library(tidyverse)
+  library(annotatr)
   
   DMR_data <- makeGRangesFromDataFrame(QSEA_outcome)
   dm_annotated <- annotate_regions(regions = DMR_data,
