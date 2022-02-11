@@ -28,6 +28,7 @@ load("./data/qsea_outcome_EPI_all_samples_20211001.RData")
 sig <- isSignificant(qseaGLM, fdr_th=0.01)
 QSEA_outcome <- makeTable(qseaSet, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet), 
                           keep=sig, annotation=c(ROIs_2), norm_method="beta")
+length(unique(QSEA_outcome$window_end))
 annotated_genes <-get.annotated_genes(QSEA_outcome, annotations)
 
 # select 5% gene with high DMRs count in gene regions
@@ -75,6 +76,7 @@ load(paste0("./data/qsea_outcome_", dose, "_allSamples.RData"))
 sig <- isSignificant(qseaGLM, fdr_th=0.01)
 QSEA_outcome <- makeTable(qseaSet_blind, glm=qseaGLM, groupMeans=getSampleGroups(qseaSet_blind), 
                           keep=sig, annotation=c(ROIs_2), norm_method="beta")
+length(unique(QSEA_outcome$window_end))
 annotated_genes <-get.annotated_genes(QSEA_outcome, annotations)
 
 # select 5% gene with high DMRs count in gene regions
