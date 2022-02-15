@@ -88,9 +88,14 @@ get.geneExpression <- function(Selected_genes, norm_data) {
       full_join(Log_invitro_tem, by = c("Condition"))
     
     plist[[i]] <- ggplot(plot_dat, aes(x = Time, y = mean, colour = Dose, group = Dose)) + 
-      geom_line() + geom_point() + coord_cartesian(ylim =c(0, NA)) +
+      geom_line(size = 1) + geom_point(size = 3) + coord_cartesian(ylim =c(0, NA)) +
       xlab("Time (hours)") + ylab("gene expression") +
-      ggtitle(Selected_genes$SYMBOL[i]) +  theme_bw()
+      ggtitle(Selected_genes$SYMBOL[i]) + theme_bw() +
+      theme(plot.title = element_text(size = 16, face = "bold.italic"),
+            legend.text = element_text(size = 14),
+            legend.title = element_text(size = 14),
+            axis.title = element_text(size = 15),
+            axis.text = element_text(size = 16))
   }
   ml <- marrangeGrob(plist, nrow=3, ncol=3)
   pdf("GeneExpression.pdf", width=25,height=12)
@@ -109,8 +114,8 @@ norm_data       <- get.norm_data(RNA_data_count)
 library(AnnotationDbi)
 library(org.Hs.eg.db)
 library(tidyverse)
-selected_genes <- c("ANKRD11", "DENND3", "EHMT1", "HDAC4",
-                    "MAD1L1", "NCOR2", "PFKP", "SDHA", "TCF25")
+selected_genes <- c("MAD1L1", "PRDM15", "NCOR2", "SUN1", 
+                    "SPG7", "ANKRD11", "DENND3", "ATP11A")
 annot <- AnnotationDbi::select(org.Hs.eg.db, keys = selected_genes, 
                                column = c("SYMBOL", "ENSEMBL", "GENENAME"),
                                keytype = "SYMBOL", multiVals = "list")
