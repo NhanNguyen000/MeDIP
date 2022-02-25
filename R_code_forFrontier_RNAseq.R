@@ -214,9 +214,6 @@ annot_hypoMethy_EPI_Tox <- AnnotationDbi::select(org.Hs.eg.db, keys = hypoMethy_
 get.geneExpression(annot_hypoMethy_EPI_Tox, norm_data, 
                    filename = "GeneExpression_hypoMethy_EPI_Tox_20220216")
 # Make figure
-selected_genes <- c("SMARCA4", "PKN1", "RGS12", "CTTN", "HDAC4",
-                    "HDLBP", "DPP9", "RNF213", "ZC3H18", "EIF3B", 
-                    "SDHA", "PFKP", "PPP6R2", "POLR2A", "AGPAT3")
 selected_genes <- c("SMARCA4", "PKN1", "RGS12", "HDAC4",
                      "DPP9", "SDHA", "POLR2A", "AGPAT3")
 annot_selected_genes <- AnnotationDbi::select(org.Hs.eg.db, keys = selected_genes, 
