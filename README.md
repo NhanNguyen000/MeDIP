@@ -7,8 +7,8 @@ This workflow built on the [QSEA package](http://bioconductor.org/packages/relea
 ## Instructions
 - The **QSEA_Rcode_in_server** and **QSEA_Rcode_server_2021Jan18** are the R script to run QSEA analysis.
 - The **data** folder stores all the needed data information and output after the QSEA analysis.
-- The **R_code_forACM**, **R_code_forFrontier**, and **R_code_forFrontier_RNAseq** are the R script to run the downstream analysis for the publications in ACM and Frontiers journal, respectively.
-- The **outcome_ACM** and **outcome_Frontiers** folders store all the outcome for the publications in ACM and Frontiers journal, respectively.
+- The **R_code_forACM**, **R_code_forFrontier**, and **R_code_forFrontier_RNAseq** are the R script to run the downstream analysis for the publications in ACM and Frontiers in Bioscience - Landmark journal, respectively.
+- The **outcome_ACM** and **outcome_Frontiers** folders store all the outcome for the publications in ACM and Frontiers in Bioscience - Landmark journal, respectively.
 Other files: 
 - **R_functions** - store all the functions that are used in other R scripts
 - **anotation_NN_2020Nov16** - script to prepare the annotation files
