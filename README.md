@@ -5,6 +5,7 @@ This repository for the MeDIP-seq data analysis workflow in R.
 This workflow built on the [QSEA package](http://bioconductor.org/packages/release/bioc/html/qsea.html) and can analyze DNA methylation at gene levels. 
 
 ## Instructions
+- The **prepare_samples** folfer contain the bash script to prepare the data (from raw .fastq file) for the QSEA analysis in R
 - The **QSEA_Rcode_in_server** and **QSEA_Rcode_server_2021Jan18** are the R script to run QSEA analysis.
 - The **data** folder stores all the needed data information and output after the QSEA analysis.
 - The **R_code_forACM**, **R_code_forFrontier**, and **R_code_forFrontier_RNAseq** are the R script to run the downstream analysis for the publications in ACM and Frontiers in Bioscience - Landmark journal, respectively.
