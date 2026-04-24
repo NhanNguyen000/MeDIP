@@ -16,7 +16,7 @@ Other files:
 - **anotation_NN_2020Nov16** - script to prepare the annotation files
 
 ## Related publications 
-Nhan Nguyen, Matthias Lienhard, Ralf Herwig, Jos Kleinjans, and Danyel Jennen. “Epirubicin alters DNA methylation profiles related to cardiotoxicity”. Frontiers in Bioscience - Landmark (2022, in press).
+Nhan Nguyen, Matthias Lienhard, Ralf Herwig, Jos Kleinjans, and Danyel Jennen. “Epirubicin alters DNA methylation profiles related to cardiotoxicity”. Frontiers in Bioscience - Landmark. 2022 Jun 1;27(6):173. PMID: 35748249. [https://doi.org/10.31083/j.fbl2706173](https://doi.org/10.31083/j.fbl2706173)
 
 Nhan Nguyen, Matthias Lienhard, Ralf Herwig, Jos Kleinjans, and Danyel Jennen. “A bioinformatics workflow to detect genes with DNA methylation alterations: a case study of analyzing MeDIP-seq data in cardiac microtissue exposed to epirubicin”. International Conference Proceedings by ACM (2022). [https://doi.org/10.1145/3510427.3510437](https://doi.org/10.1145/3510427.3510437)
 
